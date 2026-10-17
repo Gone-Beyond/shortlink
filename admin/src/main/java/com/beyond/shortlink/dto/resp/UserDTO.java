@@ -2,11 +2,11 @@ package com.beyond.shortlink.dto.resp;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
-import lombok.ToString;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@ToString
+@Data
 public class UserDTO {
 
     /**
