@@ -7,12 +7,12 @@ import com.beyond.shortlink.dao.entity.UserDO;
 import com.beyond.shortlink.dao.mapper.UserMapper;
 import com.beyond.shortlink.dto.resp.UserDTO;
 import com.beyond.shortlink.service.UserService;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
 
     private final UserMapper userMapper;
@@ -24,7 +24,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         //  extends ServiceImpl<UserMapper, UserDO> 里面的字段
         UserDO userDO = this.baseMapper.selectOne(queryWrapper);
-
+        if (userDO == null) {
+            return null;
+        }
         UserDTO resp = new UserDTO();
 
         BeanUtils.copyProperties(userDO, resp);
