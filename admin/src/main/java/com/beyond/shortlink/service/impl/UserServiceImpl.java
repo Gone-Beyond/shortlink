@@ -1,5 +1,6 @@
 package com.beyond.shortlink.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -10,7 +11,6 @@ import com.beyond.shortlink.dao.mapper.UserMapper;
 import com.beyond.shortlink.dto.resp.UserDTO;
 import com.beyond.shortlink.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,14 +26,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         //  extends ServiceImpl<UserMapper, UserDO> 里面的字段
         UserDO userDO = this.baseMapper.selectOne(queryWrapper);
+
         if (userDO == null) {
-           throw new ClientException(UserErrorCodeEnum.USER_NULL);
+            throw new ClientException(UserErrorCodeEnum.USER_NULL);
         }
-        UserDTO resp = new UserDTO();
+        return BeanUtil.copyProperties(userDO, UserDTO.class);
 
-        BeanUtils.copyProperties(userDO, resp);
 
-        return resp;
 
 
     }
