@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
 
-    private final UserMapper userMapper;
 
     public UserDTO getUserByUsername(String username) {
 
