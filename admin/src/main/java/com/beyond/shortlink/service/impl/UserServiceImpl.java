@@ -11,12 +11,14 @@ import com.beyond.shortlink.dao.mapper.UserMapper;
 import com.beyond.shortlink.dto.resp.UserDTO;
 import com.beyond.shortlink.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RBloomFilter;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
 
+    private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
 
     public UserDTO getUserByUsername(String username) {
 
@@ -31,10 +33,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         return BeanUtil.copyProperties(userDO, UserDTO.class);
 
-
-
-
     }
+
+    @Override
+    public Boolean hasUsername(String username) {
+        return userRegisterCachePenetrationBloomFilter.contains(username);
+    }
+
 
 
 
