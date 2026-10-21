@@ -1,7 +1,7 @@
 package com.beyond.shortlink.dto.resp;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
+import com.beyond.shortlink.common.serialize.PhoneDesensitizationSerializer;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -9,11 +9,6 @@ import java.time.LocalDateTime;
 @Data
 public class UserDTO {
 
-    /**
-     * ID
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
 
     /**
      * 用户名
@@ -29,6 +24,7 @@ public class UserDTO {
     /**
      * 手机号
      */
+    @JsonSerialize(using = PhoneDesensitizationSerializer.class)
     private String phone;
 
     /**

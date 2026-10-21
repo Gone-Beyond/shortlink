@@ -6,4 +6,6 @@ import com.beyond.shortlink.dto.resp.UserDTO;
 
 public interface UserService extends IService<UserDO> {
     UserDTO getUserByUsername(String username);
+
+    Boolean hasUsername(String username);
 }
