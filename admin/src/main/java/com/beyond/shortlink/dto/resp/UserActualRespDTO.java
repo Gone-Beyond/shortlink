@@ -7,11 +7,6 @@ import java.time.LocalDateTime;
 @Data
 public class UserActualRespDTO {
 
-    /**
-     * ID
-     */
-
-    private Long id;
 
     /**
      * 用户名
