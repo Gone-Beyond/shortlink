@@ -83,16 +83,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     @Override
     public void update(UserUpdateReqDTO requestParam) {
-        //TODO 验证当前用户是登录者吗
+        //TODO 验证当前用户是登录者吗（后面会改 先留着）
 
         LambdaUpdateWrapper<UserDO> wrapper = Wrappers.lambdaUpdate(UserDO.class)
                 .eq(UserDO::getUsername, requestParam.getUsername());
 
         int updated = baseMapper.update(BeanUtil.toBean(requestParam, UserDO.class), wrapper);
-        //FIXME 这里到底管不管失败情况？（异常先不管 后面应该才讲解）
-        /*if (updated < 1) {
-            throw new ClientException()
-        }*/
+
+        if (updated < 1) {
+            throw new ClientException(UserErrorCodeEnum.USER_NULL);
+        }
 
     }
 

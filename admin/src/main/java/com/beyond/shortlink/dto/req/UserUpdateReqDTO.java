@@ -4,10 +4,6 @@ import lombok.Data;
 
 @Data
 public class UserUpdateReqDTO {
-    /**
-     * ID
-     */
-    private Long id;
 
     /**
      * 用户名
