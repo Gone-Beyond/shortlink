@@ -19,15 +19,14 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import static com.beyond.shortlink.common.constant.RedisCacheConstant.LOCK_USER_REGISTER_KEY;
-import static com.beyond.shortlink.common.enums.UserErrorCodeEnum.USER_EXIST;
-import static com.beyond.shortlink.common.enums.UserErrorCodeEnum.USER_SAVE_ERROR;
+import static com.beyond.shortlink.common.enums.UserErrorCodeEnum.*;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
 
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
-    private final RedissonClient RedissonClient;
+    private final RedissonClient redissonClient;
 
     public UserDTO getUserByUsername(String username) {
 
@@ -52,10 +51,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     @Override
     public void register(UserRegisterReqDTO requestParam) {
         if (userRegisterCachePenetrationBloomFilter.contains(requestParam.getUsername())) {
-            throw new ClientException(USER_EXIST);
+            throw new ClientException(USER_NAME_EXIST);
         }
 
-        RLock lock = RedissonClient.getLock(LOCK_USER_REGISTER_KEY + requestParam.getUsername());
+        RLock lock = redissonClient.getLock(LOCK_USER_REGISTER_KEY + requestParam.getUsername());
 
         if (!lock.tryLock()) {
             throw new ClientException(USER_EXIST);
