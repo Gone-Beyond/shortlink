@@ -9,9 +9,11 @@ import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.common.enums.UserErrorCodeEnum;
 import com.beyond.shortlink.dao.entity.UserDO;
 import com.beyond.shortlink.dao.mapper.UserMapper;
+import com.beyond.shortlink.dto.req.UserLoginReqDTO;
 import com.beyond.shortlink.dto.req.UserRegisterReqDTO;
 import com.beyond.shortlink.dto.req.UserUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.UserDTO;
+import com.beyond.shortlink.dto.resp.UserLoginRespDTO;
 import com.beyond.shortlink.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
@@ -94,6 +96,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new ClientException(UserErrorCodeEnum.USER_NULL);
         }
 
+    }
+
+    @Override
+    public UserLoginRespDTO login(UserLoginReqDTO requestParam) {
+
+        LambdaQueryWrapper<UserDO> wrapper = Wrappers.lambdaQuery(UserDO.class)
+                .eq(UserDO::getUsername, requestParam.getUsername())
+                .eq(UserDO::getPassword, requestParam.getPassword())
+                .eq(UserDO::getDelFlag, 0);
+
+        UserDO userDO = baseMapper.selectOne(wrapper);
+
+        //TODO 忘干净了  什么redis  KEY -- 小KEY  -- 小VALUE(里面就是一个MAP) 结构记得
+        // 但是token 就是这些登录/JWT什么的  全忘了  得先讲解  复习 。
+
+
+
+        return null;
     }
 
 

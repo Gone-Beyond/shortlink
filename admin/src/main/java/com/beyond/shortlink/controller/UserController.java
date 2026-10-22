@@ -4,10 +4,12 @@ package com.beyond.shortlink.controller;
 import cn.hutool.core.bean.BeanUtil;
 import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.common.convention.result.Results;
+import com.beyond.shortlink.dto.req.UserLoginReqDTO;
 import com.beyond.shortlink.dto.req.UserRegisterReqDTO;
 import com.beyond.shortlink.dto.req.UserUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.UserActualRespDTO;
 import com.beyond.shortlink.dto.resp.UserDTO;
+import com.beyond.shortlink.dto.resp.UserLoginRespDTO;
 import com.beyond.shortlink.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -50,6 +52,11 @@ public class UserController {
     }
 
 
+    @PostMapping("/api/short-link/admin/v1/user/login")
+    public Result<UserLoginRespDTO> login(@RequestBody UserLoginReqDTO requestParam) {
+
+        return Results.success(userService.login(requestParam));
+    }
 
 
 
