@@ -4,10 +4,7 @@ import lombok.Data;
 
 @Data
 public class UserRegisterReqDTO {
-    /**
-     * ID
-     */
-    private Long id;
+
 
     /**
      * 用户名
