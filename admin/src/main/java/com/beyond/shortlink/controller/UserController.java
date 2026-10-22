@@ -5,6 +5,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.common.convention.result.Results;
 import com.beyond.shortlink.dto.req.UserRegisterReqDTO;
+import com.beyond.shortlink.dto.req.UserUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.UserActualRespDTO;
 import com.beyond.shortlink.dto.resp.UserDTO;
 import com.beyond.shortlink.service.UserService;
@@ -41,6 +42,15 @@ public class UserController {
         userService.register(requestParam);
         return Results.success();
     }
+
+    @PutMapping("/api/short-link/admin/v1/user")
+    public Result<Void> update(@RequestBody UserUpdateReqDTO requestParam) {
+        userService.update(requestParam);
+        return Results.success();
+    }
+
+
+
 
 
 

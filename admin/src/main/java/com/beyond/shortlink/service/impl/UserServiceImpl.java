@@ -2,6 +2,7 @@ package com.beyond.shortlink.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.convention.exception.ClientException;
@@ -9,6 +10,7 @@ import com.beyond.shortlink.common.enums.UserErrorCodeEnum;
 import com.beyond.shortlink.dao.entity.UserDO;
 import com.beyond.shortlink.dao.mapper.UserMapper;
 import com.beyond.shortlink.dto.req.UserRegisterReqDTO;
+import com.beyond.shortlink.dto.req.UserUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.UserDTO;
 import com.beyond.shortlink.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +78,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             lock.unlock();
         }
 
+
+    }
+
+    @Override
+    public void update(UserUpdateReqDTO requestParam) {
+        //TODO 验证当前用户是登录者吗
+
+        LambdaUpdateWrapper<UserDO> wrapper = Wrappers.lambdaUpdate(UserDO.class)
+                .eq(UserDO::getUsername, requestParam.getUsername());
+
+        int updated = baseMapper.update(BeanUtil.toBean(requestParam, UserDO.class), wrapper);
+        //FIXME 这里到底管不管失败情况？（异常先不管 后面应该才讲解）
+        /*if (updated < 1) {
+            throw new ClientException()
+        }*/
 
     }
 
