@@ -1,6 +1,8 @@
 package com.beyond.shortlink.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.UUID;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -20,9 +22,13 @@ import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.TimeUnit;
+
 import static com.beyond.shortlink.common.constant.RedisCacheConstant.LOCK_USER_REGISTER_KEY;
+import static com.beyond.shortlink.common.constant.RedisCacheConstant.USER_LOGIN_KEY;
 import static com.beyond.shortlink.common.enums.UserErrorCodeEnum.*;
 
 @Service
@@ -31,6 +37,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
     private final RedissonClient redissonClient;
+    private final StringRedisTemplate stringRedisTemplate;
 
     public UserDTO getUserByUsername(String username) {
 
@@ -108,12 +115,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         UserDO userDO = baseMapper.selectOne(wrapper);
 
-        //TODO 忘干净了  什么redis  KEY -- 小KEY  -- 小VALUE(里面就是一个MAP) 结构记得
-        // 但是token 就是这些登录/JWT什么的  全忘了  得先讲解  复习 。
+        if (userDO == null) {
+            throw new ClientException("用户名或密码错误");
+        }
+
+        String loginKey = USER_LOGIN_KEY + requestParam.getUsername();
+
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(loginKey))) {
+            throw new ClientException("用户已登录");
+        }
+
+        String token = UUID.randomUUID().toString();
+        stringRedisTemplate.opsForHash().put(loginKey, token, JSONUtil.toJsonStr(userDO));
+        stringRedisTemplate.expire(loginKey, 30L, TimeUnit.MINUTES);
 
 
-
-        return null;
+        return new UserLoginRespDTO(token);
     }
 
 
