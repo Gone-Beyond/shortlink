@@ -36,6 +36,13 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- JDK 21 需要 lombok >= 1.18.30，需放在 spring-boot-dependencies 之前以覆盖其版本 -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>1.18.46</version>
+            </dependency>
+
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>

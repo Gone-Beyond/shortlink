@@ -6,16 +6,15 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 
- * @TableName t_user
+ * 用户持久层实体
  */
 @TableName(value ="t_user")
 @Data
 public class UserDO {
+
     /**
      * ID
      */
-
     private Long id;
 
     /**

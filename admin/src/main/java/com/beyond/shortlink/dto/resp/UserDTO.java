@@ -6,15 +6,16 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * 用户信息响应实体（脱敏）
+ */
 @Data
 public class UserDTO {
-
 
     /**
      * 用户名
      */
     private String username;
-
 
     /**
      * 真实姓名
@@ -22,7 +23,7 @@ public class UserDTO {
     private String realName;
 
     /**
-     * 手机号
+     * 手机号（脱敏）
      */
     @JsonSerialize(using = PhoneDesensitizationSerializer.class)
     private String phone;

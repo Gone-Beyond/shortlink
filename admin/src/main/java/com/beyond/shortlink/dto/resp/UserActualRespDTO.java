@@ -4,15 +4,16 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * 用户真实信息响应实体（未脱敏）
+ */
 @Data
 public class UserActualRespDTO {
-
 
     /**
      * 用户名
      */
     private String username;
-
 
     /**
      * 真实姓名
@@ -48,5 +49,4 @@ public class UserActualRespDTO {
      * 删除标识 0：未删除 1：已删除
      */
     private Integer delFlag;
-
 }
