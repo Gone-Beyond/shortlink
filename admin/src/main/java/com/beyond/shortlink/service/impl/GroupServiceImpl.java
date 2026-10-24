@@ -3,11 +3,14 @@ package com.beyond.shortlink.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.biz.user.UserContext;
+import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.dao.entity.GroupDO;
 import com.beyond.shortlink.dao.mapper.GroupMapper;
+import com.beyond.shortlink.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
 import com.beyond.shortlink.service.GroupService;
 import org.springframework.stereotype.Service;
@@ -45,6 +48,23 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
         return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
 
+    }
+
+    @Override
+    public void updateGroup(ShortLinkGroupUpdateReqDTO requestParam) {
+        LambdaUpdateWrapper<GroupDO> wrapper = Wrappers.lambdaUpdate(GroupDO.class)
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getGid, requestParam.getGid())
+                .eq(GroupDO::getDelFlag, 0);
+
+        GroupDO groupDO = GroupDO.builder()
+                .name(requestParam.getName())
+                .build();
+
+        int updated = baseMapper.update(groupDO, wrapper);
+        if (updated < 1) {
+            throw new ClientException("短链接分组不存在");
+        }
     }
 
     private boolean hasGid(String gid) {

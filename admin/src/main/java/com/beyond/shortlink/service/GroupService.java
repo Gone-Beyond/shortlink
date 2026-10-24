@@ -2,6 +2,7 @@ package com.beyond.shortlink.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.beyond.shortlink.dao.entity.GroupDO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
 
 import java.util.List;
@@ -17,4 +18,9 @@ public interface GroupService extends IService<GroupDO> {
     void saveGroup(String groupName);
 
     List<ShortLinkGroupRespDTO> listGroup();
+
+    /**
+     * 修改短链接分组
+     */
+    void updateGroup(ShortLinkGroupUpdateReqDTO requestParam);
 }
