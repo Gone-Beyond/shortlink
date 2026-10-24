@@ -1,12 +1,17 @@
 package com.beyond.shortlink.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.RandomUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.dao.entity.GroupDO;
 import com.beyond.shortlink.dao.mapper.GroupMapper;
+import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
 import com.beyond.shortlink.service.GroupService;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * 短链接分组接口实现层
@@ -25,6 +30,21 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         } while (hasGid(gid));
 
         baseMapper.insert(GroupDO.builder().gid(gid).name(groupName).sortOrder(0).build());
+
+    }
+
+    @Override
+    public List<ShortLinkGroupRespDTO> listGroup() {
+        //TODO 后面拿用户名
+
+        LambdaQueryWrapper<GroupDO> wrapper = Wrappers.lambdaQuery(GroupDO.class)
+                .isNull(GroupDO::getName)
+                .eq(GroupDO::getDelFlag, 0)
+                .orderByDesc(GroupDO::getSortOrder, GroupDO::getUpdateTime);
+
+        List<GroupDO> groupDOList = baseMapper.selectList(wrapper);
+
+        return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
 
     }
 
