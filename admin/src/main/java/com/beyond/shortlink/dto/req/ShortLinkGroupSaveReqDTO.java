@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class ShortLinkGroupSaveReqDTO {
-    private String name;   // 只有这一个字段
+    private String name;
 }
