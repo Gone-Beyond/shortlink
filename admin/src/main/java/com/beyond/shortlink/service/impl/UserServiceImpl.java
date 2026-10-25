@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.beyond.shortlink.common.biz.user.UserContext;
 import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.common.enums.UserErrorCodeEnum;
 import com.beyond.shortlink.dao.entity.UserDO;
@@ -25,6 +26,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static com.beyond.shortlink.common.constant.RedisCacheConstant.LOCK_USER_REGISTER_KEY;
@@ -96,7 +98,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Override
     public void update(UserUpdateReqDTO requestParam) {
-        // TODO 验证当前用户是登录者吗（后面会改 先留着）
+        if (!Objects.equals(requestParam.getUsername(), UserContext.getUsername())) {
+            throw new ClientException("当前登录用户修改请求异常");
+        }
         LambdaUpdateWrapper<UserDO> wrapper = Wrappers.lambdaUpdate(UserDO.class)
                 .eq(UserDO::getUsername, requestParam.getUsername());
         int updated = baseMapper.update(BeanUtil.toBean(requestParam, UserDO.class), wrapper);
@@ -126,7 +130,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         String token = UUID.randomUUID().toString();
         stringRedisTemplate.opsForHash().put(loginKey, token, JSONUtil.toJsonStr(userDO));
-        stringRedisTemplate.expire(loginKey, 30L, TimeUnit.MINUTES);
+        stringRedisTemplate.expire(loginKey, 30L, TimeUnit.DAYS);
 
         return new UserLoginRespDTO(token);
     }
