@@ -8,12 +8,15 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.biz.user.UserContext;
 import com.beyond.shortlink.common.convention.exception.ClientException;
+import com.beyond.shortlink.dao.entity.BaseDO;
 import com.beyond.shortlink.dao.entity.GroupDO;
 import com.beyond.shortlink.dao.mapper.GroupMapper;
+import com.beyond.shortlink.dto.req.ShortLinkGroupSortReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
 import com.beyond.shortlink.service.GroupService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -42,7 +45,8 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         LambdaQueryWrapper<GroupDO> wrapper = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getUsername, UserContext.getUsername())
                 .eq(GroupDO::getDelFlag, 0)
-                .orderByDesc(GroupDO::getSortOrder, GroupDO::getUpdateTime);
+                .orderByAsc(GroupDO::getSortOrder)
+                .orderByDesc(BaseDO::getUpdateTime);
 
         List<GroupDO> groupDOList = baseMapper.selectList(wrapper);
 
@@ -81,6 +85,30 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         if (updated < 1) {
             throw new ClientException("短链接分组不存在");
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void sortGroup(List<ShortLinkGroupSortReqDTO> requestParam) {
+        String username = UserContext.getUsername();
+
+        requestParam.forEach(each -> {
+
+            LambdaUpdateWrapper<GroupDO> wrapper = Wrappers.lambdaUpdate(GroupDO.class)
+                    .eq(GroupDO::getDelFlag, 0)
+                    .eq(GroupDO::getGid, each.getGid())
+                    .eq(GroupDO::getUsername, username);
+
+            GroupDO groupDO = GroupDO.builder().sortOrder(each.getSortOrder()).build();
+
+            int updated = baseMapper.update(groupDO, wrapper);
+
+            if (updated < 1) {
+                throw new ClientException("短链接分组不存在");
+            }
+
+
+        });
     }
 
     private boolean hasGid(String gid) {

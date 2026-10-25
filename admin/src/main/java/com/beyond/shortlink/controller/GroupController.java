@@ -3,6 +3,7 @@ package com.beyond.shortlink.controller;
 import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.common.convention.result.Results;
 import com.beyond.shortlink.dto.req.ShortLinkGroupSaveReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupSortReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
 import com.beyond.shortlink.service.GroupService;
@@ -54,6 +55,13 @@ public class GroupController {
         return Results.success();
     }
 
-
+    /**
+     * 短链接分组排序
+     */
+    @PostMapping("/api/short-link/admin/v1/group/sort")
+    public Result<Void> sort(@RequestBody List<ShortLinkGroupSortReqDTO> requestParam) {
+        groupService.sortGroup(requestParam);
+        return Results.success();
+    }
 
 }
