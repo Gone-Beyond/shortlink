@@ -3,15 +3,18 @@ package com.beyond.shortlink.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.convention.exception.ServiceException;
 import com.beyond.shortlink.dao.entity.LinkDO;
 import com.beyond.shortlink.dao.entity.LinkGotoDO;
-import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
+import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dto.req.ShortLinkCreateReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkCreateRespDTO;
+import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.ShortLinkService;
 import com.beyond.shortlink.toolkit.HashUtil;
 import lombok.RequiredArgsConstructor;
@@ -96,5 +99,17 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         // 2 ---->  后台任务解决
         // 1-----> SQL DB  看看有没有  由于加盐了  只要只1不2（即bloom容量OK）那么
         // 攻击者想1-----> SQL DB 打崩 基本不可能  因为 + UUID.fastUUID();
+    }
+
+
+    @Override
+    public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO requestParam) {
+        LambdaQueryWrapper<LinkDO> queryWrapper = Wrappers.lambdaQuery(LinkDO.class)
+                .eq(LinkDO::getGid, requestParam.getGid())
+                .eq(LinkDO::getEnableStatus, 0)
+                .eq(LinkDO::getDelFlag, 0)
+                .orderByDesc(LinkDO::getCreateTime);
+        IPage<LinkDO> resultPage = baseMapper.selectPage(requestParam, queryWrapper);
+        return resultPage.convert(each -> BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
     }
 }
