@@ -40,5 +40,8 @@ build/
 ### Mac OS ###
 .DS_Store
 
-
 admin/src/main/resources/shardingsphere-config-dev.yaml
+
+### Apifox & Temp ###
+.apifox/
+ocr*.txt
