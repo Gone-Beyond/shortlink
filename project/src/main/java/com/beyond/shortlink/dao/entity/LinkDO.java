@@ -45,6 +45,11 @@ public class LinkDO extends BaseDO {
     private String originUrl;
 
     /**
+     * 网站图标地址
+     */
+    private String favicon;
+
+    /**
      * 点击量
      */
     private Integer clickNum;
