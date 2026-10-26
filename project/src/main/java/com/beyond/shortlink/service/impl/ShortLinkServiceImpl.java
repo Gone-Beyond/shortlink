@@ -7,7 +7,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.convention.exception.ServiceException;
 import com.beyond.shortlink.dao.entity.LinkDO;
+import com.beyond.shortlink.dao.entity.LinkGotoDO;
 import com.beyond.shortlink.dao.mapper.LinkMapper;
+import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
 import com.beyond.shortlink.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.service.ShortLinkService;
@@ -17,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 短链接接口实现层
@@ -28,6 +31,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
     private final RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter;
 
+    private final LinkGotoMapper linkGotoMapper;
+
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
         String shortUri = generateSuffix(requestParam);
@@ -38,14 +44,20 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         linkDO.setFullShortUrl(fullShortUrl);
         linkDO.setEnableStatus(0);
 
+        LinkGotoDO linkGotoDO = LinkGotoDO.builder()
+                .gid(requestParam.getGid())
+                .fullShortUrl(fullShortUrl)
+                .build();
+
         try {
             baseMapper.insert(linkDO);
+            linkGotoMapper.insert(linkGotoDO);
         } catch (DuplicateKeyException ex) {
 
-            LambdaQueryWrapper<LinkDO> wrapper = Wrappers.lambdaQuery(LinkDO.class)
-                    .eq(LinkDO::getFullShortUrl, fullShortUrl);
+            LambdaQueryWrapper<LinkGotoDO> wrapper = Wrappers.lambdaQuery(LinkGotoDO.class)
+                    .eq(LinkGotoDO::getFullShortUrl, fullShortUrl);
 
-            if (baseMapper.selectOne(wrapper) != null) {
+            if (linkGotoMapper.selectOne(wrapper) != null) {
                 // 库里有、布隆里没有：补进布隆，下次生成直接跳过
                 shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
             }
