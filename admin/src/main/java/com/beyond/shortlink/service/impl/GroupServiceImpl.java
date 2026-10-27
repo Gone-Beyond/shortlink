@@ -8,17 +8,22 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.biz.user.UserContext;
 import com.beyond.shortlink.common.convention.exception.ClientException;
+import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.dao.entity.BaseDO;
 import com.beyond.shortlink.dao.entity.GroupDO;
 import com.beyond.shortlink.dao.mapper.GroupMapper;
 import com.beyond.shortlink.dto.req.ShortLinkGroupSortReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
+import com.beyond.shortlink.remote.ShortLinkRemoteService;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.service.GroupService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 短链接分组接口实现层
@@ -26,6 +31,11 @@ import java.util.List;
 @Service
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
 
+    /**
+     * 后续重构为 SpringCloud Feign 调用
+     */
+    ShortLinkRemoteService shortLinkRemoteService = new ShortLinkRemoteService() {
+    };
 
     @Override
     public void saveGroup(String groupName) {
@@ -54,7 +64,28 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
         List<GroupDO> groupDOList = baseMapper.selectList(wrapper);
 
-        return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
+        List<ShortLinkGroupRespDTO> result = BeanUtil.copyToList(groupDOList,
+                ShortLinkGroupRespDTO.class);
+
+        if (result.isEmpty()) {
+            return result;
+        }
+
+
+        List<String> gidList = result.stream().map(ShortLinkGroupRespDTO::getGid).toList();
+
+        Result<List<ShortLinkGroupCountQueryRespDTO>> countResult = shortLinkRemoteService.listGroupShortLinkCount(gidList);
+
+        Map<String, Integer> countMap = countResult.getData().stream()
+                .collect(Collectors.toMap(ShortLinkGroupCountQueryRespDTO::getGid,
+                        ShortLinkGroupCountQueryRespDTO::getShortLinkCount));
+
+        result.forEach(each ->
+                each.setShortLinkCount(countMap.getOrDefault(each.getGid(), 0)
+                ));
+
+
+        return result;
 
     }
 

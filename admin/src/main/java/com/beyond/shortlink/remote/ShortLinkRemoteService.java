@@ -8,9 +8,11 @@ import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.remote.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkPageReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,6 +41,18 @@ public interface ShortLinkRemoteService {
         requestMap.put("size", requestParam.getSize());
         String resultPageStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/page", requestMap);
         return JSON.parseObject(resultPageStr, new TypeReference<>() {
+        });
+    }
+
+
+    /**
+     * 查询分组短链接总量
+     */
+    default Result<List<ShortLinkGroupCountQueryRespDTO>> listGroupShortLinkCount(List<String> requestParam) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("requestParam", requestParam);
+        String resultStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/count", requestMap);
+        return JSON.parseObject(resultStr, new TypeReference<>() {
         });
     }
 }
