@@ -17,6 +17,7 @@ import com.beyond.shortlink.dto.req.UserRegisterReqDTO;
 import com.beyond.shortlink.dto.req.UserUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.UserDTO;
 import com.beyond.shortlink.dto.resp.UserLoginRespDTO;
+import com.beyond.shortlink.service.GroupService;
 import com.beyond.shortlink.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
@@ -25,6 +26,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +45,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final GroupService groupService;
 
     /**
      * 根据用户名查询脱敏用户信息
@@ -70,6 +73,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * 用户注册（分布式锁 + 布隆过滤器）
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void register(UserRegisterReqDTO requestParam) {
         if (userRegisterCachePenetrationBloomFilter.contains(requestParam.getUsername())) {
             throw new ClientException(USER_NAME_EXIST);
@@ -85,6 +89,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             if (insert < 1) {
                 throw new ClientException(USER_SAVE_ERROR);
             }
+            groupService.saveGroup(requestParam.getUsername(), "默认分组");
             userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
         } catch (DuplicateKeyException ex) {
             throw new ClientException(USER_EXIST.message(), ex, USER_EXIST);

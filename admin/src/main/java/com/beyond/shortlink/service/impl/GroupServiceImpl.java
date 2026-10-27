@@ -29,16 +29,20 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
     @Override
     public void saveGroup(String groupName) {
+        saveGroup(UserContext.getUsername(), groupName);
+    }
 
+    @Override
+    public void saveGroup(String username, String groupName) {
         String gid;
-
         do {
             gid = RandomUtil.randomString(6);
-        } while (hasGid(gid));
+        } while (hasGid(username, gid));
 
-        baseMapper.insert(GroupDO.builder().username(UserContext.getUsername()).gid(gid).name(groupName).sortOrder(0).build());
-
+        baseMapper.insert(GroupDO.builder().username(username).gid(gid).name(groupName).sortOrder(0).build());
     }
+
+
 
     @Override
     public List<ShortLinkGroupRespDTO> listGroup() {
@@ -111,10 +115,10 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         });
     }
 
-    private boolean hasGid(String gid) {
-        return  baseMapper
+    private boolean hasGid(String username, String gid) {
+        return baseMapper
                 .exists(Wrappers.lambdaQuery(GroupDO.class)
-                        .eq(GroupDO::getUsername, UserContext.getUsername())
+                        .eq(GroupDO::getUsername, username)
                         .eq(GroupDO::getGid, gid));
     }
 }
