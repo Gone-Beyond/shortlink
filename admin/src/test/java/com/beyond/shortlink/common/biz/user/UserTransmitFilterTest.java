@@ -49,7 +49,7 @@ class UserTransmitFilterTest {
     @ParameterizedTest
     @CsvSource({
             "POST, /api/short-link/admin/v1/user/login",
-            "GET, /api/short-link/v1/user/has-username",
+            "GET, /api/short-link/admin/v1/user/has-username",
             "POST, /api/short-link/admin/v1/user"
     })
     void publicEndpointsDoNotRequireCredentials(String method, String uri) throws Exception {
@@ -66,7 +66,8 @@ class UserTransmitFilterTest {
             "POST, /api/short-link/admin/v1/group",
             "PUT, /api/short-link/admin/v1/user",
             "GET, /api/short-link/admin/v1/user/login",
-            "POST, /api/short-link/v1/user/has-username",
+            "POST, /api/short-link/admin/v1/user/has-username",
+            "GET, /api/short-link/v1/user/has-username",
             "POST, /api/short-link/admin/v1/user/login/extra"
     })
     void protectedEndpointsRejectMissingCredentials(String method, String uri) throws Exception {

@@ -56,7 +56,7 @@ public class UserTransmitFilter implements Filter {
      */
     private boolean isIgnore(String requestURI, String method) {
         return ("POST".equals(method) && "/api/short-link/admin/v1/user/login".equals(requestURI))
-                || ("GET".equals(method) && "/api/short-link/v1/user/has-username".equals(requestURI))
+                || ("GET".equals(method) && "/api/short-link/admin/v1/user/has-username".equals(requestURI))
                 || ("POST".equals(method) && "/api/short-link/admin/v1/user".equals(requestURI));
     }
 
