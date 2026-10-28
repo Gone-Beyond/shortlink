@@ -5,6 +5,7 @@ import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.remote.ShortLinkRemoteService;
 import com.beyond.shortlink.remote.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkPageReqDTO;
+import com.beyond.shortlink.remote.dto.req.ShortLinkUpdateReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.GroupService;
@@ -46,5 +47,15 @@ public class ShortLinkController {
     public Result<Page<ShortLinkPageRespDTO>> pageShortLink(ShortLinkPageReqDTO requestParam) {
         groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.pageShortLink(requestParam);
+    }
+
+    /**
+     * 修改短链接
+     */
+    @PostMapping("/api/short-link/admin/v1/update")
+    public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParam) {
+        groupService.checkGroupBelongToUser(requestParam.getOriginGid());
+        groupService.checkGroupBelongToUser(requestParam.getGid());
+        return shortLinkRemoteService.updateShortLink(requestParam);
     }
 }

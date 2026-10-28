@@ -4,9 +4,11 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.common.convention.exception.ServiceException;
 import com.beyond.shortlink.dao.entity.LinkDO;
 import com.beyond.shortlink.dao.entity.LinkGotoDO;
@@ -14,6 +16,7 @@ import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
 import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
@@ -28,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 短链接接口实现层
@@ -128,5 +132,65 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                 .groupBy("gid");
         List<Map<String, Object>> shortLinkList = baseMapper.selectMaps(queryWrapper);
         return BeanUtil.copyToList(shortLinkList, ShortLinkGroupCountQueryRespDTO.class);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateShortLink(ShortLinkUpdateReqDTO requestParam) {
+
+        LambdaQueryWrapper<LinkDO> queryWrapper = Wrappers.lambdaQuery(LinkDO.class)
+                .eq(LinkDO::getGid, requestParam.getOriginGid())
+                .eq(LinkDO::getFullShortUrl, requestParam.getFullShortUrl())
+                .eq(LinkDO::getDelFlag, 0)
+                .eq(LinkDO::getEnableStatus, 0);
+
+        LinkDO hasLinkDO = baseMapper.selectOne(queryWrapper);
+
+        if (hasLinkDO == null) {
+            throw new ClientException("短链接记录不存在");
+
+        }
+
+        if (Objects.equals(requestParam.getOriginGid(), requestParam.getGid())) {
+            // 2. 不换分组：在原表里直接 UPDATE
+            LambdaUpdateWrapper<LinkDO> updateWrapper = Wrappers.lambdaUpdate(LinkDO.class)
+                    .eq(LinkDO::getGid, requestParam.getOriginGid())
+                    .eq(LinkDO::getFullShortUrl, requestParam.getFullShortUrl())
+                    .eq(LinkDO::getDelFlag, 0)
+                    .eq(LinkDO::getEnableStatus, 0)
+                    .set(Objects.equals(requestParam.getValidDateType(), 0), LinkDO::getValidDate, null);
+            LinkDO linkDO = LinkDO.builder()
+                    .originUrl(requestParam.getOriginUrl())
+                    .describe(requestParam.getDescribe())
+                    .validDateType(requestParam.getValidDateType())
+                    .validDate(requestParam.getValidDate())
+                    .build();
+            baseMapper.update(linkDO, updateWrapper);
+        } else {
+            // 3. 换分组：先删旧表，再插新表
+            LambdaQueryWrapper<LinkDO> deleteWrapper = Wrappers.lambdaQuery(LinkDO.class)
+                    .eq(LinkDO::getGid, requestParam.getOriginGid())
+                    .eq(LinkDO::getFullShortUrl, requestParam.getFullShortUrl());
+            baseMapper.delete(deleteWrapper);
+
+            hasLinkDO.setId(null);
+            hasLinkDO.setGid(requestParam.getGid());
+            hasLinkDO.setOriginUrl(requestParam.getOriginUrl());
+            hasLinkDO.setDescribe(requestParam.getDescribe());
+            hasLinkDO.setValidDateType(requestParam.getValidDateType());
+            hasLinkDO.setValidDate(requestParam.getValidDate());
+            baseMapper.insert(hasLinkDO);
+
+            // 4. 路由表改 gid（按 full_short_url 分表，短码没变，不用搬家）
+            LambdaUpdateWrapper<LinkGotoDO> gotoUpdateWrapper = Wrappers.lambdaUpdate(LinkGotoDO.class)
+                    .eq(LinkGotoDO::getFullShortUrl, requestParam.getFullShortUrl())
+                    .eq(LinkGotoDO::getGid, requestParam.getOriginGid())
+                    .set(LinkGotoDO::getGid, requestParam.getGid());
+            linkGotoMapper.update(null, gotoUpdateWrapper);
+
+
+        }
+
+
     }
 }

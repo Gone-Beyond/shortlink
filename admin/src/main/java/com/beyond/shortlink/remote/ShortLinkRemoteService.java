@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.remote.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkPageReqDTO;
+import com.beyond.shortlink.remote.dto.req.ShortLinkUpdateReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
@@ -52,6 +53,17 @@ public interface ShortLinkRemoteService {
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("requestParam", requestParam);
         String resultStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/count", requestMap);
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+
+
+    }
+
+    /**
+     * 修改短链接
+     */
+    default Result<Void> updateShortLink(ShortLinkUpdateReqDTO requestParam) {
+        String resultStr = HttpUtil.post(BASE_URL + "/api/short-link/v1/update", JSON.toJSONString(requestParam));
         return JSON.parseObject(resultStr, new TypeReference<>() {
         });
     }

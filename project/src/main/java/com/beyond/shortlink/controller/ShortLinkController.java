@@ -5,6 +5,7 @@ import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.common.convention.result.Results;
 import com.beyond.shortlink.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
@@ -45,5 +46,14 @@ public class ShortLinkController {
     @GetMapping("/api/short-link/v1/count")
     public Result<List<ShortLinkGroupCountQueryRespDTO>> listGroupShortLinkCount(@RequestParam("requestParam") List<String> requestParam) {
         return Results.success(shortLinkService.listGroupShortLinkCount(requestParam));
+    }
+
+    /**
+     * 修改短链接
+     */
+    @PostMapping("/api/short-link/v1/update")
+    public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParam) {
+        shortLinkService.updateShortLink(requestParam);
+        return Results.success();
     }
 }
