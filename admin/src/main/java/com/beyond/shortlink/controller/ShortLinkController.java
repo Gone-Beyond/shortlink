@@ -7,6 +7,8 @@ import com.beyond.shortlink.remote.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkPageReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
+import com.beyond.shortlink.service.GroupService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,7 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
  * 短链接后管控制层
  */
 @RestController
+@RequiredArgsConstructor
 public class ShortLinkController {
+
+
+    private final GroupService groupService;
 
     /**
      * 后续重构为 SpringCloud Feign 调用
@@ -29,6 +35,7 @@ public class ShortLinkController {
      */
     @PostMapping("/api/short-link/admin/v1/create")
     public Result<ShortLinkCreateRespDTO> createShortLink(@RequestBody ShortLinkCreateReqDTO requestParam) {
+        groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.createShortLink(requestParam);
     }
 
@@ -37,6 +44,7 @@ public class ShortLinkController {
      */
     @GetMapping("/api/short-link/admin/v1/page")
     public Result<Page<ShortLinkPageRespDTO>> pageShortLink(ShortLinkPageReqDTO requestParam) {
+        groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.pageShortLink(requestParam);
     }
 }

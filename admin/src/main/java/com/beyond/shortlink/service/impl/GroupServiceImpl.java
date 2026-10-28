@@ -144,6 +144,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
 
         });
+
+
+    }
+
+    @Override
+    public void checkGroupBelongToUser(String gid) {
+        boolean exists = baseMapper.exists(Wrappers.lambdaQuery(GroupDO.class)
+                .eq(GroupDO::getGid, gid)
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getDelFlag, 0));
+        if (!exists) {
+            throw new ClientException("短链接分组不存在");
+        }
     }
 
     private boolean hasGid(String username, String gid) {
@@ -152,5 +165,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
                         .eq(GroupDO::getUsername, username)
                         .eq(GroupDO::getGid, gid));
     }
+
+
 }
 

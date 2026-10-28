@@ -41,4 +41,11 @@ public interface GroupService extends IService<GroupDO> {
     void deleteGroup(String gid);
 
     void sortGroup(List<ShortLinkGroupSortReqDTO> requestParam);
+
+    /**
+     * 校验分组是否属于当前登录用户，不属于则抛出异常
+     *
+     * @param gid 分组标识
+     */
+    void checkGroupBelongToUser(String gid);
 }
