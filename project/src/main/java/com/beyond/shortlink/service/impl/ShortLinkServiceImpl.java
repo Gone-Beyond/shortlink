@@ -44,8 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import static com.beyond.shortlink.common.constant.RedisKeyConstant.GOTO_SHORT_LINK_KEY;
-import static com.beyond.shortlink.common.constant.RedisKeyConstant.LOCK_GOTO_SHORT_LINK_KEY;
+import static com.beyond.shortlink.common.constant.RedisKeyConstant.*;
 
 /**
  * 短链接接口实现层
@@ -202,13 +201,24 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
         String goToShortLinkKey = String.format(GOTO_SHORT_LINK_KEY, fullShortUrl);
         String lockGotoShortLinkKey = String.format(LOCK_GOTO_SHORT_LINK_KEY, fullShortUrl);
+        String isNullKey = String.format(IS_NULL_GOTO_SHORT_LINK_KEY, fullShortUrl);
+
+
         String originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
         // 只 get 一次，避免 hasKey 和 get 之间 key 过期
         if (StrUtil.isNotBlank(originUrlStr)) {
             redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
-            
             return;
         }
+
+        if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)) {
+            throw new ClientException("短链接不存在");
+        }
+
+        if (StrUtil.isNotBlank(stringRedisTemplate.opsForValue().get(isNullKey))) {
+            throw new ClientException("短链接不存在");
+        }
+
 
         RLock lock = redissonClient.getLock(lockGotoShortLinkKey);
 
@@ -217,10 +227,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
             if (StrUtil.isNotBlank(originUrlStr)) {
                 redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
-
                 return;
             }
 
+            if (StrUtil.isNotBlank(stringRedisTemplate.opsForValue().get(isNullKey))) {
+                throw new ClientException("短链接不存在");
+            }
 
 
             LambdaQueryWrapper<LinkGotoDO> gotoDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkGotoDO.class)
@@ -229,6 +241,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             LinkGotoDO linkGotoDO = linkGotoMapper.selectOne(gotoDOLambdaQueryWrapper);
 
             if (linkGotoDO == null) {
+                stringRedisTemplate.opsForValue().set(isNullKey, "-", 30, TimeUnit.MINUTES);
                 throw new ClientException("短链接不存在");
             }
 
@@ -241,6 +254,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             LinkDO linkDO = baseMapper.selectOne(linkDOLambdaQueryWrapper);
 
             if (linkDO == null) {
+                stringRedisTemplate.opsForValue().set(isNullKey, "-", 30, TimeUnit.MINUTES);
                 throw new ClientException("短链接不存在");
             }
 
