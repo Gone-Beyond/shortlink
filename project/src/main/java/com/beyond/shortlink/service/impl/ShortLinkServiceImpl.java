@@ -22,6 +22,9 @@ import com.beyond.shortlink.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.ShortLinkService;
 import com.beyond.shortlink.toolkit.HashUtil;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
@@ -29,6 +32,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -192,5 +196,37 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         }
 
 
+    }
+
+    @Override
+    public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
+        String fullShortUrl = request.getServerName() + "/" + shortUri;
+
+        LambdaQueryWrapper<LinkGotoDO> gotoDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkGotoDO.class)
+                .eq(LinkGotoDO::getFullShortUrl, fullShortUrl);
+
+        LinkGotoDO linkGotoDO = linkGotoMapper.selectOne(gotoDOLambdaQueryWrapper);
+
+        if (linkGotoDO == null) {
+            throw new ClientException("短链接不存在");
+        }
+
+        LambdaQueryWrapper<LinkDO> linkDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkDO.class)
+                .eq(LinkDO::getGid, linkGotoDO.getGid())
+                .eq(LinkDO::getFullShortUrl, fullShortUrl)
+                .eq(LinkDO::getEnableStatus, 0)
+                .eq(LinkDO::getDelFlag, 0);
+
+        LinkDO linkDO = baseMapper.selectOne(linkDOLambdaQueryWrapper);
+
+        if (linkDO == null) {
+            throw new ClientException("短链接不存在");
+        }
+
+        try {
+            ((HttpServletResponse)response).sendRedirect(linkDO.getOriginUrl());
+        } catch (IOException e) {
+            throw new ServiceException("短链接调整失败");
+        }
     }
 }
