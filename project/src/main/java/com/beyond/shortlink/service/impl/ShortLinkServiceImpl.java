@@ -1,5 +1,7 @@
 package com.beyond.shortlink.service.impl;
 
+
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -8,6 +10,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.beyond.shortlink.common.constant.RedisKeyConstant;
 import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.common.convention.exception.ServiceException;
 import com.beyond.shortlink.dao.entity.LinkDO;
@@ -28,7 +31,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +42,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+
+import static com.beyond.shortlink.common.constant.RedisKeyConstant.GOTO_SHORT_LINK_KEY;
+import static com.beyond.shortlink.common.constant.RedisKeyConstant.LOCK_GOTO_SHORT_LINK_KEY;
 
 /**
  * 短链接接口实现层
@@ -46,8 +56,9 @@ import java.util.Objects;
 public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implements ShortLinkService {
 
     private final RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter;
-
     private final LinkGotoMapper linkGotoMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final RedissonClient redissonClient;
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -84,6 +95,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         }
 
         shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
+        stringRedisTemplate.opsForValue().set(
+                String.format(RedisKeyConstant.GOTO_SHORT_LINK_KEY, fullShortUrl),
+                requestParam.getOriginUrl(),
+                30, TimeUnit.DAYS);
 
         return ShortLinkCreateRespDTO.builder()
                 .gid(requestParam.getGid())
@@ -92,27 +107,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                 .build();
     }
 
-    private String generateSuffix(ShortLinkCreateReqDTO requestParam) {
-        int retryCount = 0;
-        while (retryCount < 10) {
-            String salted = requestParam.getOriginUrl() + UUID.fastUUID();
-            String shortUri = HashUtil.hashToBase62(salted);
-            if (!shortUriCreateCachePenetrationBloomFilter.contains(
-                    requestParam.getDomain() + "/" + shortUri
-            )) {
-                return shortUri;
-            }
-            retryCount++;
-        }
-        throw new ServiceException("短链接频繁生成，请稍后再试");
-        //这里就是只是 生成短链接的短码 没有过Bloom 所以会重复
-        // 怎么重复？ 1 真重复 （并发撞码  我知道什么意思  不要在这里废话） A， B base62 之后还就是一样的 2 假重复bloom要满了
-        // bloom说没有那是真没有 因为属于自己的部分空位还在  但是说有
-        // 那就不一定了  也许已经满了 那不管那个也是重复了的结果
-        // 2 ---->  后台任务解决
-        // 1-----> SQL DB  看看有没有  由于加盐了  只要只1不2（即bloom容量OK）那么
-        // 攻击者想1-----> SQL DB 打崩 基本不可能  因为 + UUID.fastUUID();
-    }
+
 
 
     @Override
@@ -195,38 +190,104 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
         }
 
+        stringRedisTemplate.delete(String.format(RedisKeyConstant.GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
+
 
     }
 
     @Override
     public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
+
         String fullShortUrl = request.getServerName() + "/" + shortUri;
 
-        LambdaQueryWrapper<LinkGotoDO> gotoDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkGotoDO.class)
-                .eq(LinkGotoDO::getFullShortUrl, fullShortUrl);
-
-        LinkGotoDO linkGotoDO = linkGotoMapper.selectOne(gotoDOLambdaQueryWrapper);
-
-        if (linkGotoDO == null) {
-            throw new ClientException("短链接不存在");
+        String goToShortLinkKey = String.format(GOTO_SHORT_LINK_KEY, fullShortUrl);
+        String lockGotoShortLinkKey = String.format(LOCK_GOTO_SHORT_LINK_KEY, fullShortUrl);
+        String originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
+        // 只 get 一次，避免 hasKey 和 get 之间 key 过期
+        if (StrUtil.isNotBlank(originUrlStr)) {
+            redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
+            
+            return;
         }
 
-        LambdaQueryWrapper<LinkDO> linkDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkDO.class)
-                .eq(LinkDO::getGid, linkGotoDO.getGid())
-                .eq(LinkDO::getFullShortUrl, fullShortUrl)
-                .eq(LinkDO::getEnableStatus, 0)
-                .eq(LinkDO::getDelFlag, 0);
+        RLock lock = redissonClient.getLock(lockGotoShortLinkKey);
 
-        LinkDO linkDO = baseMapper.selectOne(linkDOLambdaQueryWrapper);
-
-        if (linkDO == null) {
-            throw new ClientException("短链接不存在");
-        }
-
+        lock.lock();
         try {
-            ((HttpServletResponse)response).sendRedirect(linkDO.getOriginUrl());
-        } catch (IOException e) {
-            throw new ServiceException("短链接调整失败");
+            originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
+            if (StrUtil.isNotBlank(originUrlStr)) {
+                redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
+
+                return;
+            }
+
+
+
+            LambdaQueryWrapper<LinkGotoDO> gotoDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkGotoDO.class)
+                    .eq(LinkGotoDO::getFullShortUrl, fullShortUrl);
+
+            LinkGotoDO linkGotoDO = linkGotoMapper.selectOne(gotoDOLambdaQueryWrapper);
+
+            if (linkGotoDO == null) {
+                throw new ClientException("短链接不存在");
+            }
+
+            LambdaQueryWrapper<LinkDO> linkDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkDO.class)
+                    .eq(LinkDO::getGid, linkGotoDO.getGid())
+                    .eq(LinkDO::getFullShortUrl, fullShortUrl)
+                    .eq(LinkDO::getEnableStatus, 0)
+                    .eq(LinkDO::getDelFlag, 0);
+
+            LinkDO linkDO = baseMapper.selectOne(linkDOLambdaQueryWrapper);
+
+            if (linkDO == null) {
+                throw new ClientException("短链接不存在");
+            }
+
+            stringRedisTemplate.opsForValue().set(goToShortLinkKey, linkDO.getOriginUrl(), 30, TimeUnit.DAYS);
+            redirect((HttpServletResponse) response, fullShortUrl, linkDO.getOriginUrl());
+
+        } finally {
+            lock.unlock();
         }
+
+
+
+
+
+    }
+
+
+
+    private static void redirect(HttpServletResponse response, String fullShortUrl, String originUrl) {
+        try {
+            response.sendRedirect(originUrl);
+        } catch (IOException e) {
+            log.error("短链接跳转失败：{}", fullShortUrl, e);
+            throw new ServiceException("短链接跳转失败");
+        }
+    }
+
+
+    private String generateSuffix(ShortLinkCreateReqDTO requestParam) {
+        int retryCount = 0;
+        while (retryCount < 10) {
+            String salted = requestParam.getOriginUrl() + UUID.fastUUID();
+            String shortUri = HashUtil.hashToBase62(salted);
+            if (!shortUriCreateCachePenetrationBloomFilter.contains(
+                    requestParam.getDomain() + "/" + shortUri
+            )) {
+                return shortUri;
+            }
+            retryCount++;
+        }
+        throw new ServiceException("短链接频繁生成，请稍后再试");
+        //这里就是只是 生成短链接的短码 没有过Bloom 所以会重复
+        // 怎么重复？ 1 真重复 （并发撞码  我知道什么意思  不要在这里废话） A， B base62 之后还就是一样的 2 假重复bloom要满了
+        // bloom说没有那是真没有 因为属于自己的部分空位还在  但是说有
+        // 那就不一定了  也许已经满了 那不管那个也是重复了的结果
+        // 2 ---->  后台任务解决
+        // 1-----> SQL DB  看看有没有  由于加盐了  只要只1不2（即bloom容量OK）那么
+        // 攻击者想1-----> SQL DB 打崩 基本不可能  因为 + UUID.fastUUID();
     }
 }
