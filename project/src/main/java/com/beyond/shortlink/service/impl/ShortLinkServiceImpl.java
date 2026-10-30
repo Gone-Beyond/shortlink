@@ -33,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -73,6 +74,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         linkDO.setShortUri(shortUri);
         linkDO.setFullShortUrl(fullShortUrl);
         linkDO.setEnableStatus(0);
+        linkDO.setFavicon(getFavicon(requestParam.getOriginUrl()));
 
         LinkGotoDO linkGotoDO = LinkGotoDO.builder()
                 .gid(requestParam.getGid())
@@ -153,6 +155,14 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
         }
 
+        boolean originUrlChanged = !Objects.equals(
+                hasLinkDO.getOriginUrl(),
+                requestParam.getOriginUrl());
+
+        String favicon = originUrlChanged
+                ? getFavicon(requestParam.getOriginUrl())
+                : hasLinkDO.getFavicon();
+
         if (Objects.equals(requestParam.getOriginGid(), requestParam.getGid())) {
             // 2. 不换分组：在原表里直接 UPDATE
             LambdaUpdateWrapper<LinkDO> updateWrapper = Wrappers.lambdaUpdate(LinkDO.class)
@@ -160,7 +170,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                     .eq(LinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                     .eq(LinkDO::getDelFlag, 0)
                     .eq(LinkDO::getEnableStatus, 0)
-                    .set(Objects.equals(requestParam.getValidDateType(), 0), LinkDO::getValidDate, null);
+                    .set(Objects.equals(requestParam.getValidDateType(), 0), LinkDO::getValidDate, null)
+                    .set(originUrlChanged, LinkDO::getFavicon, favicon);
             LinkDO linkDO = LinkDO.builder()
                     .originUrl(requestParam.getOriginUrl())
                     .describe(requestParam.getDescribe())
@@ -181,6 +192,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             hasLinkDO.setDescribe(requestParam.getDescribe());
             hasLinkDO.setValidDateType(requestParam.getValidDateType());
             hasLinkDO.setValidDate(requestParam.getValidDate());
+            hasLinkDO.setFavicon(favicon);
             baseMapper.insert(hasLinkDO);
 
             // 4. 路由表改 gid（按 full_short_url 分表，短码没变，不用搬家）
@@ -319,6 +331,50 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         } catch (IOException e) {
             log.warn("获取网站标题失败，原因：{}", e.getClass().getSimpleName());
             return "";
+        }
+    }
+
+    /**
+     * 获取网站图标地址；获取失败时返回 null
+     */
+    private String getFavicon(String originUrl) {
+        if (StrUtil.isBlank(originUrl)) {
+            return null;
+        }
+
+        try {
+            URI uri = URI.create(originUrl);
+            if (!("http".equalsIgnoreCase(uri.getScheme())
+                    || "https".equalsIgnoreCase(uri.getScheme()))
+                    || StrUtil.isBlank(uri.getHost())) {
+                return null;
+            }
+
+            Document document = Jsoup.connect(originUrl)
+                    .timeout(3000)
+                    .maxBodySize(1024 * 1024)
+                    .get();
+
+            for (Element icon : document.select(
+                    "link[rel=icon], link[rel='shortcut icon']")) {
+                String favicon = icon.absUrl("href");
+
+                if (StrUtil.isBlank(favicon) || favicon.length() > 512) {
+                    continue;
+                }
+
+                URI iconUri = URI.create(favicon);
+                if (("http".equalsIgnoreCase(iconUri.getScheme())
+                        || "https".equalsIgnoreCase(iconUri.getScheme()))
+                        && StrUtil.isNotBlank(iconUri.getHost())) {
+                    return favicon;
+                }
+            }
+
+            return null;
+        } catch (IOException | IllegalArgumentException e) {
+            log.warn("获取网站图标失败，原因：{}", e.getClass().getSimpleName());
+            return null;
         }
     }
 
