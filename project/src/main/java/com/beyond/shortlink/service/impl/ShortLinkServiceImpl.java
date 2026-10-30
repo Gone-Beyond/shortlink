@@ -1,9 +1,9 @@
 package com.beyond.shortlink.service.impl;
 
 
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.UUID;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -25,6 +25,7 @@ import com.beyond.shortlink.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.ShortLinkService;
 import com.beyond.shortlink.toolkit.HashUtil;
+import com.beyond.shortlink.toolkit.LinkUtil;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletResponse;
@@ -94,20 +95,20 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         }
 
         shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
-        stringRedisTemplate.opsForValue().set(
-                String.format(RedisKeyConstant.GOTO_SHORT_LINK_KEY, fullShortUrl),
-                requestParam.getOriginUrl(),
-                30, TimeUnit.DAYS);
-
+        long cacheValidTime = LinkUtil.getLinkCacheValidTime(linkDO.getValidDate());
+        if (cacheValidTime > 0) {
+            stringRedisTemplate.opsForValue().set(
+                    String.format(GOTO_SHORT_LINK_KEY, fullShortUrl),
+                    linkDO.getOriginUrl(),
+                    cacheValidTime,
+                    TimeUnit.MILLISECONDS);
+        }
         return ShortLinkCreateRespDTO.builder()
                 .gid(requestParam.getGid())
                 .originUrl(requestParam.getOriginUrl())
                 .fullShortUrl(fullShortUrl)
                 .build();
     }
-
-
-
 
     @Override
     public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO requestParam) {
@@ -190,7 +191,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         }
 
         stringRedisTemplate.delete(String.format(RedisKeyConstant.GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
-
+        stringRedisTemplate.delete(
+                String.format(IS_NULL_GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
 
     }
 
@@ -212,11 +214,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         }
 
         if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)) {
-            throw new ClientException("短链接不存在");
+            redirect((HttpServletResponse) response, fullShortUrl, "/page/notfound.html");
+            return;
         }
 
         if (StrUtil.isNotBlank(stringRedisTemplate.opsForValue().get(isNullKey))) {
-            throw new ClientException("短链接不存在");
+            redirect((HttpServletResponse) response, fullShortUrl, "/page/notfound.html");
+            return;
         }
 
 
@@ -231,7 +235,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             }
 
             if (StrUtil.isNotBlank(stringRedisTemplate.opsForValue().get(isNullKey))) {
-                throw new ClientException("短链接不存在");
+                redirect((HttpServletResponse) response, fullShortUrl, "/page/notfound.html");
+                return;
             }
 
 
@@ -242,7 +247,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
             if (linkGotoDO == null) {
                 stringRedisTemplate.opsForValue().set(isNullKey, "-", 30, TimeUnit.MINUTES);
-                throw new ClientException("短链接不存在");
+                redirect((HttpServletResponse) response, fullShortUrl, "/page/notfound.html");
+                return;
             }
 
             LambdaQueryWrapper<LinkDO> linkDOLambdaQueryWrapper = Wrappers.lambdaQuery(LinkDO.class)
@@ -255,10 +261,24 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
             if (linkDO == null) {
                 stringRedisTemplate.opsForValue().set(isNullKey, "-", 30, TimeUnit.MINUTES);
-                throw new ClientException("短链接不存在");
+                redirect((HttpServletResponse) response, fullShortUrl, "/page/notfound.html");
+                return;
             }
 
-            stringRedisTemplate.opsForValue().set(goToShortLinkKey, linkDO.getOriginUrl(), 30, TimeUnit.DAYS);
+            long cacheValidTime = LinkUtil.getLinkCacheValidTime(linkDO.getValidDate());
+
+            if (cacheValidTime <= 0) {
+                stringRedisTemplate.opsForValue().set(isNullKey, "-", 30, TimeUnit.MINUTES);
+                redirect((HttpServletResponse) response, fullShortUrl, "/page/notfound.html");
+                return;
+            }
+
+            stringRedisTemplate.opsForValue().set(
+                    goToShortLinkKey,
+                    linkDO.getOriginUrl(),
+                    cacheValidTime,
+                    TimeUnit.MILLISECONDS);
+
             redirect((HttpServletResponse) response, fullShortUrl, linkDO.getOriginUrl());
 
         } finally {
