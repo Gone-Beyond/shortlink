@@ -31,6 +31,8 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -40,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -285,12 +288,39 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             lock.unlock();
         }
 
-
-
-
-
     }
 
+    @Override
+    public String getTitleByUrl(String url) {
+        if (StrUtil.isBlank(url)) {
+            throw new ClientException("网站地址不能为空");
+        }
+
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (IllegalArgumentException e) {
+            throw new ClientException("网站地址格式不正确");
+        }
+
+        if (!("http".equalsIgnoreCase(uri.getScheme())
+                || "https".equalsIgnoreCase(uri.getScheme()))
+                || StrUtil.isBlank(uri.getHost())) {
+            throw new ClientException("请输入完整的 HTTP 或 HTTPS 网站地址");
+        }
+
+        try {
+            Document document = Jsoup.connect(url)
+                    .timeout(3000)
+                    .maxBodySize(1024 * 1024)
+                    .get();
+
+            return document.title();
+        } catch (IOException e) {
+            log.warn("获取网站标题失败，原因：{}", e.getClass().getSimpleName());
+            return "";
+        }
+    }
 
 
     private static void redirect(HttpServletResponse response, String fullShortUrl, String originUrl) {

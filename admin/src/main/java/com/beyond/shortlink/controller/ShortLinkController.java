@@ -10,10 +10,7 @@ import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.GroupService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 短链接后管控制层
@@ -57,5 +54,13 @@ public class ShortLinkController {
         groupService.checkGroupBelongToUser(requestParam.getOriginGid());
         groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.updateShortLink(requestParam);
+    }
+
+    /**
+     * 获取目标网站标题
+     */
+    @GetMapping("/api/short-link/admin/v1/title")
+    public Result<String> getTitleByUrl(@RequestParam("url") String url) {
+        return shortLinkRemoteService.getTitleByUrl(url);
     }
 }

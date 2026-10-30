@@ -57,5 +57,16 @@ public interface ShortLinkService extends IService<LinkDO> {
      */
     void restoreUrl(String shortUri, ServletRequest request, ServletResponse response);
 
+    /**
+     * 获取目标网站标题
+     *
+     * @param url 目标网站地址
+     * @return 网站标题，获取失败时返回空字符串
+     */
+    String getTitleByUrl(String url);
+
+
+
+
 
 }

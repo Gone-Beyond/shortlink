@@ -66,4 +66,12 @@ public class ShortLinkController {
     public void restoreUrl(@PathVariable("shortUri") String shortUri, ServletRequest request, ServletResponse response) {
         shortLinkService.restoreUrl(shortUri, request, response);
     }
+
+    /**
+     * 获取目标网站标题
+     */
+    @GetMapping("/api/short-link/v1/title")
+    public Result<String> getTitleByUrl(@RequestParam("url") String url) {
+        return Results.success(shortLinkService.getTitleByUrl(url));
+    }
 }
