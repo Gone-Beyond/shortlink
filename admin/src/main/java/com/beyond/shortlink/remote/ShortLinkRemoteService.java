@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.beyond.shortlink.common.convention.result.Result;
+import com.beyond.shortlink.remote.dto.req.RecycleBinSaveReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkPageReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkUpdateReqDTO;
@@ -78,6 +79,18 @@ public interface ShortLinkRemoteService {
         String resultStr = HttpUtil.get(
                 BASE_URL + "/api/short-link/v1/title",
                 requestMap);
+
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
+
+    /**
+     * 将短链接移入回收站
+     */
+    default Result<Void> saveRecycleBin(RecycleBinSaveReqDTO requestParam) {
+        String resultStr = HttpUtil.post(
+                BASE_URL + "/api/short-link/v1/recycle-bin/save",
+                JSON.toJSONString(requestParam));
 
         return JSON.parseObject(resultStr, new TypeReference<>() {
         });
