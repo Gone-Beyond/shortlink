@@ -8,17 +8,22 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.biz.user.UserContext;
 import com.beyond.shortlink.common.convention.exception.ClientException;
+import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.dao.entity.BaseDO;
 import com.beyond.shortlink.dao.entity.GroupDO;
 import com.beyond.shortlink.dao.mapper.GroupMapper;
 import com.beyond.shortlink.dto.req.ShortLinkGroupSortReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkGroupRespDTO;
+import com.beyond.shortlink.remote.ShortLinkRemoteService;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.service.GroupService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 短链接分组接口实现层
@@ -26,19 +31,28 @@ import java.util.List;
 @Service
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
 
+    /**
+     * 后续重构为 SpringCloud Feign 调用
+     */
+    ShortLinkRemoteService shortLinkRemoteService = new ShortLinkRemoteService() {
+    };
 
     @Override
     public void saveGroup(String groupName) {
+        saveGroup(UserContext.getUsername(), groupName);
+    }
 
+    @Override
+    public void saveGroup(String username, String groupName) {
         String gid;
-
         do {
             gid = RandomUtil.randomString(6);
-        } while (hasGid(gid));
+        } while (hasGid(username, gid));
 
-        baseMapper.insert(GroupDO.builder().username(UserContext.getUsername()).gid(gid).name(groupName).sortOrder(0).build());
-
+        baseMapper.insert(GroupDO.builder().username(username).gid(gid).name(groupName).sortOrder(0).build());
     }
+
+
 
     @Override
     public List<ShortLinkGroupRespDTO> listGroup() {
@@ -50,7 +64,28 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
         List<GroupDO> groupDOList = baseMapper.selectList(wrapper);
 
-        return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
+        List<ShortLinkGroupRespDTO> result = BeanUtil.copyToList(groupDOList,
+                ShortLinkGroupRespDTO.class);
+
+        if (result.isEmpty()) {
+            return result;
+        }
+
+
+        List<String> gidList = result.stream().map(ShortLinkGroupRespDTO::getGid).toList();
+
+        Result<List<ShortLinkGroupCountQueryRespDTO>> countResult = shortLinkRemoteService.listGroupShortLinkCount(gidList);
+
+        Map<String, Integer> countMap = countResult.getData().stream()
+                .collect(Collectors.toMap(ShortLinkGroupCountQueryRespDTO::getGid,
+                        ShortLinkGroupCountQueryRespDTO::getShortLinkCount));
+
+        result.forEach(each ->
+                each.setShortLinkCount(countMap.getOrDefault(each.getGid(), 0)
+                ));
+
+
+        return result;
 
     }
 
@@ -109,13 +144,41 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
 
         });
+
+
     }
 
-    private boolean hasGid(String gid) {
-        return  baseMapper
+    @Override
+    public void checkGroupBelongToUser(String gid) {
+        boolean exists = baseMapper.exists(Wrappers.lambdaQuery(GroupDO.class)
+                .eq(GroupDO::getGid, gid)
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getDelFlag, 0));
+        if (!exists) {
+            throw new ClientException("短链接分组不存在");
+        }
+    }
+
+    @Override
+    public List<String> listGroupIds() {
+        return baseMapper.selectList(
+                        Wrappers.lambdaQuery(GroupDO.class)
+                                .select(GroupDO::getGid)
+                                .eq(GroupDO::getUsername,
+                                        UserContext.getUsername())
+                                .eq(GroupDO::getDelFlag, 0))
+                .stream()
+                .map(GroupDO::getGid)
+                .toList();
+    }
+
+    private boolean hasGid(String username, String gid) {
+        return baseMapper
                 .exists(Wrappers.lambdaQuery(GroupDO.class)
-                        .eq(GroupDO::getUsername, UserContext.getUsername())
+                        .eq(GroupDO::getUsername, username)
                         .eq(GroupDO::getGid, gid));
     }
+
+
 }
 

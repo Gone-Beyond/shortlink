@@ -18,6 +18,14 @@ public interface GroupService extends IService<GroupDO> {
      */
     void saveGroup(String groupName);
 
+    /**
+     * 新增短链接分组
+     *
+     * @param username  用户名
+     * @param groupName 短链接分组名
+     */
+    void saveGroup(String username, String groupName);
+
     List<ShortLinkGroupRespDTO> listGroup();
 
     /**
@@ -33,4 +41,13 @@ public interface GroupService extends IService<GroupDO> {
     void deleteGroup(String gid);
 
     void sortGroup(List<ShortLinkGroupSortReqDTO> requestParam);
+
+    /**
+     * 校验分组是否属于当前登录用户，不属于则抛出异常
+     *
+     * @param gid 分组标识
+     */
+    void checkGroupBelongToUser(String gid);
+
+    List<String> listGroupIds();
 }

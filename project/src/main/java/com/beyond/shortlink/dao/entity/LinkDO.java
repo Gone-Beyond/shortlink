@@ -45,6 +45,11 @@ public class LinkDO extends BaseDO {
     private String originUrl;
 
     /**
+     * 网站图标地址
+     */
+    private String favicon;
+
+    /**
      * 点击量
      */
     private Integer clickNum;
@@ -79,4 +84,9 @@ public class LinkDO extends BaseDO {
      */
     @TableField("`describe`")
     private String describe;
+
+    /**
+     * 删除时间戳，未删除时为 0
+     */
+    private Long delTime;
 }
