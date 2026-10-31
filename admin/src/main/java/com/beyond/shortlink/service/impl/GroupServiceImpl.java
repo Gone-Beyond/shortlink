@@ -159,6 +159,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         }
     }
 
+    @Override
+    public List<String> listGroupIds() {
+        return baseMapper.selectList(
+                        Wrappers.lambdaQuery(GroupDO.class)
+                                .select(GroupDO::getGid)
+                                .eq(GroupDO::getUsername,
+                                        UserContext.getUsername())
+                                .eq(GroupDO::getDelFlag, 0))
+                .stream()
+                .map(GroupDO::getGid)
+                .toList();
+    }
+
     private boolean hasGid(String username, String gid) {
         return baseMapper
                 .exists(Wrappers.lambdaQuery(GroupDO.class)

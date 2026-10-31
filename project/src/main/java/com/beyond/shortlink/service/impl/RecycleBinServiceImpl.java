@@ -1,13 +1,20 @@
 package com.beyond.shortlink.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.constant.RedisKeyConstant;
 import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.dao.entity.LinkDO;
 import com.beyond.shortlink.dao.mapper.LinkMapper;
+import com.beyond.shortlink.dto.req.RecycleBinPageReqDTO;
 import com.beyond.shortlink.dto.req.RecycleBinSaveReqDTO;
+import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.RecycleBinService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -47,5 +54,30 @@ public class RecycleBinServiceImpl
 
 
 
+    }
+
+    @Override
+    public IPage<ShortLinkPageRespDTO> pageRecycleBin(
+            RecycleBinPageReqDTO requestParam) {
+
+        if (CollUtil.isEmpty(requestParam.getGidList())) {
+            return new Page<>(
+                    requestParam.getCurrent(),
+                    requestParam.getSize(),
+                    0);
+        }
+
+        LambdaQueryWrapper<LinkDO> queryWrapper =
+                Wrappers.lambdaQuery(LinkDO.class)
+                        .in(LinkDO::getGid, requestParam.getGidList())
+                        .eq(LinkDO::getEnableStatus, 1)
+                        .eq(LinkDO::getDelFlag, 0)
+                        .orderByDesc(LinkDO::getCreateTime);
+
+        IPage<LinkDO> resultPage =
+                baseMapper.selectPage(requestParam, queryWrapper);
+
+        return resultPage.convert(each ->
+                BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
     }
 }

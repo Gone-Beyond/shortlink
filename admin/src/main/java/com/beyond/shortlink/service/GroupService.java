@@ -48,4 +48,6 @@ public interface GroupService extends IService<GroupDO> {
      * @param gid 分组标识
      */
     void checkGroupBelongToUser(String gid);
+
+    List<String> listGroupIds();
 }

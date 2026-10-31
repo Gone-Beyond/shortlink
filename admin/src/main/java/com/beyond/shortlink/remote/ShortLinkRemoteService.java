@@ -5,10 +5,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.beyond.shortlink.common.convention.result.Result;
-import com.beyond.shortlink.remote.dto.req.RecycleBinSaveReqDTO;
-import com.beyond.shortlink.remote.dto.req.ShortLinkCreateReqDTO;
-import com.beyond.shortlink.remote.dto.req.ShortLinkPageReqDTO;
-import com.beyond.shortlink.remote.dto.req.ShortLinkUpdateReqDTO;
+import com.beyond.shortlink.remote.dto.req.*;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
@@ -95,5 +92,26 @@ public interface ShortLinkRemoteService {
         return JSON.parseObject(resultStr, new TypeReference<>() {
         });
     }
-  
+
+
+    /**
+     * 分页查询回收站短链接
+     */
+    default Result<Page<ShortLinkPageRespDTO>> pageRecycleBin(
+            RecycleBinPageReqDTO requestParam) {
+
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("current", requestParam.getCurrent());
+        requestMap.put("size", requestParam.getSize());
+        requestMap.put("gidList", requestParam.getGidList());
+
+        String resultStr = HttpUtil.get(
+                BASE_URL + "/api/short-link/v1/recycle-bin/page",
+                requestMap);
+
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
+
+
 }
