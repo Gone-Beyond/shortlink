@@ -5,6 +5,7 @@ import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.remote.ShortLinkRemoteService;
 import com.beyond.shortlink.remote.dto.req.RecycleBinPageReqDTO;
 import com.beyond.shortlink.remote.dto.req.RecycleBinRecoverReqDTO;
+import com.beyond.shortlink.remote.dto.req.RecycleBinRemoveReqDTO;
 import com.beyond.shortlink.remote.dto.req.RecycleBinSaveReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.GroupService;
@@ -61,5 +62,16 @@ public class RecycleBinController {
 
         groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.recoverRecycleBin(requestParam);
+    }
+
+    /**
+     * 从回收站移除短链接
+     */
+    @PostMapping("/api/short-link/admin/v1/recycle-bin/remove")
+    public Result<Void> removeRecycleBin(
+            @RequestBody RecycleBinRemoveReqDTO requestParam) {
+
+        groupService.checkGroupBelongToUser(requestParam.getGid());
+        return shortLinkRemoteService.removeRecycleBin(requestParam);
     }
 }

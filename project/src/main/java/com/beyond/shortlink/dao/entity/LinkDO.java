@@ -84,4 +84,9 @@ public class LinkDO extends BaseDO {
      */
     @TableField("`describe`")
     private String describe;
+
+    /**
+     * 删除时间戳，未删除时为 0
+     */
+    private Long delTime;
 }

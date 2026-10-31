@@ -13,6 +13,7 @@ import com.beyond.shortlink.dao.entity.LinkDO;
 import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dto.req.RecycleBinPageReqDTO;
 import com.beyond.shortlink.dto.req.RecycleBinRecoverReqDTO;
+import com.beyond.shortlink.dto.req.RecycleBinRemoveReqDTO;
 import com.beyond.shortlink.dto.req.RecycleBinSaveReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.service.RecycleBinService;
@@ -104,6 +105,28 @@ public class RecycleBinServiceImpl
         );
         stringRedisTemplate.delete(
                 String.format(IS_NULL_GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl())
+        );
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void removeRecycleBin(RecycleBinRemoveReqDTO requestParam) {
+        LambdaUpdateWrapper<LinkDO> updateWrapper = Wrappers.lambdaUpdate(LinkDO.class)
+                .eq(LinkDO::getGid, requestParam.getGid())
+                .eq(LinkDO::getFullShortUrl, requestParam.getFullShortUrl())
+                .eq(LinkDO::getEnableStatus, 1)
+                .eq(LinkDO::getDelTime, 0L)
+                .eq(LinkDO::getDelFlag, 0)
+                .set(LinkDO::getDelTime, System.currentTimeMillis())
+                .set(LinkDO::getDelFlag, 1);
+
+        int updated = baseMapper.update(null, updateWrapper);
+        if (updated < 1) {
+            throw new ClientException("短链接不存在或不在回收站");
+        }
+
+        stringRedisTemplate.delete(
+                String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl())
         );
     }
 }
