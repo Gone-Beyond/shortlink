@@ -19,4 +19,9 @@ public class RedisKeyConstant {
      * 短链接跳转空值缓存 key，后面拼 fullShortUrl
      */
     public static final String IS_NULL_GOTO_SHORT_LINK_KEY = "short-link:is-null:goto:%s";
+
+    /**
+     * 短链接统计判断是否新用户缓存标识，后面拼 fullShortUrl
+     */
+    public static final String SHORT_LINK_STATS_UV_KEY = "short-link:stats:uv:";
 }
