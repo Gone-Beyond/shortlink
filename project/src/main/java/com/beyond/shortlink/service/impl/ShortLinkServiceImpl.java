@@ -19,14 +19,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.constant.RedisKeyConstant;
 import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.common.convention.exception.ServiceException;
-import com.beyond.shortlink.dao.entity.LinkAccessStatsDO;
-import com.beyond.shortlink.dao.entity.LinkDO;
-import com.beyond.shortlink.dao.entity.LinkGotoDO;
-import com.beyond.shortlink.dao.entity.LinkLocaleStatsDO;
-import com.beyond.shortlink.dao.mapper.LinkAccessStatsMapper;
-import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
-import com.beyond.shortlink.dao.mapper.LinkLocaleStatsMapper;
-import com.beyond.shortlink.dao.mapper.LinkMapper;
+import com.beyond.shortlink.dao.entity.*;
+import com.beyond.shortlink.dao.mapper.*;
 import com.beyond.shortlink.dto.req.ShortLinkCreateReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkUpdateReqDTO;
@@ -60,6 +54,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.beyond.shortlink.common.constant.RedisKeyConstant.*;
 import static com.beyond.shortlink.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
@@ -78,6 +73,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
     private final RedissonClient redissonClient;
     private final LinkAccessStatsMapper linkAccessStatsMapper;
     private final LinkLocaleStatsMapper linkLocaleStatsMapper;
+    private final LinkOsStatsMapper linkOsStatsMapper;
+    private final LinkBrowserStatsMapper linkBrowserStatsMapper;
+    private final LinkDeviceStatsMapper linkDeviceStatsMapper;
+    private final LinkNetworkStatsMapper linkNetworkStatsMapper;
+    private final LinkAccessLogsMapper linkAccessLogsMapper;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
@@ -357,15 +357,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
     private void shortLinkStats(String fullShortUrl, ServletRequest request, ServletResponse response) {
         AtomicBoolean uvFirstFlag = new AtomicBoolean();
         Cookie[] cookies = ((HttpServletRequest) request).getCookies();
+        AtomicReference<String> uv = new AtomicReference<>();
         try {
             Runnable addResponseCookieTask = () -> {
-                String uv = UUID.fastUUID().toString();
-                Cookie uvCookie = new Cookie("uv", uv);
+                uv.set(UUID.fastUUID().toString());
+                Cookie uvCookie = new Cookie("uv", uv.get());
                 uvCookie.setMaxAge(60 * 60 * 24 * 30);
                 uvCookie.setPath(StrUtil.sub(fullShortUrl, fullShortUrl.indexOf("/"), fullShortUrl.length()));
                 ((HttpServletResponse) response).addCookie(uvCookie);
                 uvFirstFlag.set(Boolean.TRUE);
-                stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, uv);
+                stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, uv.get());
             };
             if (ArrayUtil.isNotEmpty(cookies)) {
                 Arrays.stream(cookies)
@@ -373,6 +374,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                         .findFirst()
                         .map(Cookie::getValue)
                         .ifPresentOrElse(each -> {
+                            uv.set(each);
                             Long uvAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, each);
                             uvFirstFlag.set(uvAdded != null && uvAdded > 0L);
                         }, addResponseCookieTask);
@@ -404,12 +406,14 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             String localeResultStr = HttpUtil.get(AMAP_REMOTE_URL, localeParamMap);
             JSONObject localeResultObj = JSON.parseObject(localeResultStr);
             String infoCode = localeResultObj.getString("infocode");
+            String actualProvince = "未知";
+            String actualCity = "未知";
             if (StrUtil.isNotBlank(infoCode) && StrUtil.equals(infoCode, "10000")) {
                 String province = localeResultObj.getString("province");
                 boolean unknownFlag = StrUtil.equals(province, "[]");
                 LinkLocaleStatsDO linkLocaleStatsDO = LinkLocaleStatsDO.builder()
-                        .province(unknownFlag ? "未知" : province)
-                        .city(unknownFlag ? "未知" : localeResultObj.getString("city"))
+                        .province(actualProvince = unknownFlag ? actualProvince : province)
+                        .city(actualCity = unknownFlag ? actualCity : localeResultObj.getString("city"))
                         .adcode(unknownFlag ? "未知" : localeResultObj.getString("adcode"))
                         .cnt(1)
                         .fullShortUrl(fullShortUrl)
@@ -418,6 +422,50 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                         .build();
                 linkLocaleStatsMapper.shortLinkLocaleState(linkLocaleStatsDO);
             }
+            String os = LinkUtil.getOs((HttpServletRequest) request);
+            LinkOsStatsDO linkOsStatsDO = LinkOsStatsDO.builder()
+                    .os(os)
+                    .cnt(1)
+                    .fullShortUrl(fullShortUrl)
+                    .date(now)
+                    .build();
+            linkOsStatsMapper.shortLinkOsState(linkOsStatsDO);
+            String browser = LinkUtil.getBrowser((HttpServletRequest) request);
+            LinkBrowserStatsDO linkBrowserStatsDO = LinkBrowserStatsDO.builder()
+                    .browser(browser)
+                    .cnt(1)
+                    .fullShortUrl(fullShortUrl)
+                    .date(now)
+                    .build();
+            linkBrowserStatsMapper.shortLinkBrowserState(linkBrowserStatsDO);
+            String device = LinkUtil.getDevice((HttpServletRequest) request);
+            LinkDeviceStatsDO linkDeviceStatsDO = LinkDeviceStatsDO.builder()
+                    .device(device)
+                    .cnt(1)
+                    .fullShortUrl(fullShortUrl)
+                    .date(now)
+                    .build();
+            linkDeviceStatsMapper.shortLinkDeviceState(linkDeviceStatsDO);
+            String network = LinkUtil.getNetwork((HttpServletRequest) request);
+            LinkNetworkStatsDO linkNetworkStatsDO = LinkNetworkStatsDO.builder()
+                    .network(network)
+                    .cnt(1)
+                    .fullShortUrl(fullShortUrl)
+                    .date(now)
+                    .build();
+            linkNetworkStatsMapper.shortLinkNetworkState(linkNetworkStatsDO);
+
+            LinkAccessLogsDO linkAccessLogsDO = LinkAccessLogsDO.builder()
+                    .user(uv.get())
+                    .ip(remoteAddr)
+                    .browser(browser)
+                    .os(os)
+                    .network(network)
+                    .device(device)
+                    .locale(StrUtil.join("-", "中国", actualProvince, actualCity))
+                    .fullShortUrl(fullShortUrl)
+                    .build();
+            linkAccessLogsMapper.insert(linkAccessLogsDO);
         } catch (Throwable ex) {
             log.error("短链接访问量统计异常", ex);
         }

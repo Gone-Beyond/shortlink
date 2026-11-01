@@ -54,4 +54,85 @@ public class LinkUtil {
         }
         return ipAddress;
     }
+
+    /**
+     * 获取用户访问操作系统
+     *
+     * @param request 请求
+     * @return 访问操作系统
+     */
+    public static String getOs(HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent == null) {
+            return "Unknown";
+        }
+        String lowerCaseUserAgent = userAgent.toLowerCase();
+        if (lowerCaseUserAgent.contains("windows")) {
+            return "Windows";
+        } else if (lowerCaseUserAgent.contains("android")) {
+            return "Android";
+        } else if (lowerCaseUserAgent.contains("iphone") || lowerCaseUserAgent.contains("ipad")) {
+            return "iOS";
+        } else if (lowerCaseUserAgent.contains("mac")) {
+            return "Mac OS";
+        } else if (lowerCaseUserAgent.contains("linux")) {
+            return "Linux";
+        } else {
+            return "Unknown";
+        }
+    }
+
+    /**
+     * 获取用户访问浏览器
+     *
+     * @param request 请求
+     * @return 访问浏览器
+     */
+    public static String getBrowser(HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent == null) {
+            return "Unknown";
+        }
+        String lowerCaseUserAgent = userAgent.toLowerCase();
+        if (lowerCaseUserAgent.contains("edg")) {
+            return "Microsoft Edge";
+        } else if (lowerCaseUserAgent.contains("opera") || lowerCaseUserAgent.contains("opr")) {
+            return "Opera";
+        } else if (lowerCaseUserAgent.contains("chrome")) {
+            return "Google Chrome";
+        } else if (lowerCaseUserAgent.contains("firefox")) {
+            return "Mozilla Firefox";
+        } else if (lowerCaseUserAgent.contains("safari")) {
+            return "Apple Safari";
+        } else if (lowerCaseUserAgent.contains("msie") || lowerCaseUserAgent.contains("trident")) {
+            return "Internet Explorer";
+        } else {
+            return "Unknown";
+        }
+    }
+
+    /**
+     * 获取用户访问设备
+     *
+     * @param request 请求
+     * @return 访问设备
+     */
+    public static String getDevice(HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent != null && userAgent.toLowerCase().contains("mobile")) {
+            return "Mobile";
+        }
+        return "PC";
+    }
+
+    /**
+     * 获取用户访问网络
+     *
+     * @param request 请求
+     * @return 访问网络
+     */
+    public static String getNetwork(HttpServletRequest request) {
+        String actualIp = getActualIp(request);
+        return actualIp.startsWith("192.168.") || actualIp.startsWith("10.") ? "WIFI" : "Mobile";
+    }
 }
