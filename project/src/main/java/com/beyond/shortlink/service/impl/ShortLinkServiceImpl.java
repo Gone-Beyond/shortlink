@@ -2,6 +2,8 @@ package com.beyond.shortlink.service.impl;
 
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.date.Week;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -13,8 +15,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.constant.RedisKeyConstant;
 import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.common.convention.exception.ServiceException;
+import com.beyond.shortlink.dao.entity.LinkAccessStatsDO;
 import com.beyond.shortlink.dao.entity.LinkDO;
 import com.beyond.shortlink.dao.entity.LinkGotoDO;
+import com.beyond.shortlink.dao.mapper.LinkAccessStatsMapper;
 import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
 import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dto.req.ShortLinkCreateReqDTO;
@@ -44,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -63,6 +68,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
     private final LinkGotoMapper linkGotoMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
+    private final LinkAccessStatsMapper linkAccessStatsMapper;
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -224,6 +230,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         String originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
         // 只 get 一次，避免 hasKey 和 get 之间 key 过期
         if (StrUtil.isNotBlank(originUrlStr)) {
+            shortLinkStats(fullShortUrl, request, response);
             redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
             return;
         }
@@ -245,6 +252,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         try {
             originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
             if (StrUtil.isNotBlank(originUrlStr)) {
+                shortLinkStats(fullShortUrl, request, response);
                 redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
                 return;
             }
@@ -293,7 +301,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                     linkDO.getOriginUrl(),
                     cacheValidTime,
                     TimeUnit.MILLISECONDS);
-
+            shortLinkStats(fullShortUrl, request, response);
             redirect((HttpServletResponse) response, fullShortUrl, linkDO.getOriginUrl());
 
         } finally {
@@ -331,6 +339,27 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         } catch (IOException e) {
             log.warn("获取网站标题失败，原因：{}", e.getClass().getSimpleName());
             return "";
+        }
+    }
+
+    private void shortLinkStats(String fullShortUrl, ServletRequest request, ServletResponse response) {
+        try {
+            Date now = new Date();
+            int hour = DateUtil.hour(now, true);
+            Week week = DateUtil.dayOfWeekEnum(now);
+            int weekValue = week.getIso8601Value();
+            LinkAccessStatsDO linkAccessStatsDO = LinkAccessStatsDO.builder()
+                    .pv(1)
+                    .uv(1)
+                    .uip(1)
+                    .hour(hour)
+                    .weekday(weekValue)
+                    .fullShortUrl(fullShortUrl)
+                    .date(now)
+                    .build();
+            linkAccessStatsMapper.shortLinkStats(linkAccessStatsDO);
+        } catch (Throwable ex) {
+            log.error("短链接访问量统计异常", ex);
         }
     }
 
