@@ -368,6 +368,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             } else {
                 addResponseCookieTask.run();
             }
+
+            String remoteAddr = LinkUtil.getActualIp((HttpServletRequest) request);
+            Long uipAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, remoteAddr);
+            boolean uipFirstFlag = uipAdded != null && uipAdded > 0L;
+
             Date now = new Date();
             int hour = DateUtil.hour(now, true);
             Week week = DateUtil.dayOfWeekEnum(now);
@@ -375,7 +380,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             LinkAccessStatsDO linkAccessStatsDO = LinkAccessStatsDO.builder()
                     .pv(1)
                     .uv(uvFirstFlag.get() ? 1 : 0)
-                    .uip(1)
+                    .uip(uipFirstFlag ? 1 : 0)
                     .hour(hour)
                     .weekday(weekValue)
                     .fullShortUrl(fullShortUrl)
