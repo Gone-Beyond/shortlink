@@ -232,7 +232,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
     @Override
     public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
 
-        String fullShortUrl = request.getServerName() + "/" + shortUri;
+        String serverName = request.getServerName();
+        String serverPort = Optional.of(request.getServerPort())
+                .filter(each -> !Objects.equals(each, 80))
+                .map(String::valueOf)
+                .map(each -> ":" + each)
+                .orElse("");
+        String fullShortUrl = serverName + serverPort + "/" + shortUri;
 
         String goToShortLinkKey = String.format(GOTO_SHORT_LINK_KEY, fullShortUrl);
         String lockGotoShortLinkKey = String.format(LOCK_GOTO_SHORT_LINK_KEY, fullShortUrl);

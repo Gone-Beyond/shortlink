@@ -1,6 +1,7 @@
 package com.beyond.shortlink.remote;
 
 import cn.hutool.http.HttpUtil;
+import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,6 +10,7 @@ import com.beyond.shortlink.remote.dto.req.*;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsRespDTO;
 
 import java.util.HashMap;
 import java.util.List;
@@ -132,6 +134,18 @@ public interface ShortLinkRemoteService {
         String resultStr = HttpUtil.post(
                 BASE_URL + "/api/short-link/v1/recycle-bin/remove",
                 JSON.toJSONString(requestParam));
+
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
+
+    /**
+     * 访问单个短链接指定时间内监控数据
+     */
+    default Result<ShortLinkStatsRespDTO> oneShortLinkStats(ShortLinkStatsReqDTO requestParam) {
+        String resultStr = HttpUtil.get(
+                BASE_URL + "/api/short-link/v1/stats",
+                BeanUtil.beanToMap(requestParam));
 
         return JSON.parseObject(resultStr, new TypeReference<>() {
         });
