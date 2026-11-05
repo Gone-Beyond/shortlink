@@ -1,0 +1,99 @@
+-- 在 link 数据库执行；执行前确认 16 张物理表均未添加这些字段。
+-- ALTER TABLE 不可重复执行，MySQL DDL 会隐式提交，执行中断后应先核对各表结构。
+-- 历史字段默认值为 0，现有统计数据需要另行核对口径并回填。
+-- 请先完成迁移再运行依赖新字段的应用；本脚本不会启动统计写入。
+
+ALTER TABLE `t_link_0`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_1`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_2`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_3`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_4`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_5`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_6`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_7`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_8`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_9`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_10`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_11`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_12`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_13`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_14`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+ALTER TABLE `t_link_15`
+    ADD COLUMN `total_pv` INT NOT NULL DEFAULT 0 COMMENT '历史 PV',
+    ADD COLUMN `total_uv` INT NOT NULL DEFAULT 0 COMMENT '历史 UV',
+    ADD COLUMN `total_uip` INT NOT NULL DEFAULT 0 COMMENT '历史 UIP';
+
+CREATE TABLE IF NOT EXISTS `t_link_stats_today`
+(
+    `id`             BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `full_short_url` VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '完整短链接',
+    `date`           DATE NOT NULL COMMENT '统计日期',
+    `today_pv`       INT NOT NULL DEFAULT 0 COMMENT '当日 PV',
+    `today_uv`       INT NOT NULL DEFAULT 0 COMMENT '当日 UV',
+    `today_uip`      INT NOT NULL DEFAULT 0 COMMENT '当日 UIP',
+    `create_time`    DATETIME DEFAULT NULL COMMENT '创建时间',
+    `update_time`    DATETIME DEFAULT NULL COMMENT '修改时间',
+    `del_flag`       TINYINT DEFAULT 0 COMMENT '删除标识 0：未删除 1：已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_url_date` (`full_short_url`, `date`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '短链接每日访问统计表';

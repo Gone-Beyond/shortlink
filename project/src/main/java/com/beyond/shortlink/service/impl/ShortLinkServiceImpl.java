@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.beyond.shortlink.common.constant.RedisKeyConstant;
 import com.beyond.shortlink.common.convention.exception.ClientException;
@@ -46,11 +47,14 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -67,6 +71,11 @@ import static com.beyond.shortlink.common.constant.ShortLinkConstant.AMAP_REMOTE
 @RequiredArgsConstructor
 public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implements ShortLinkService {
 
+    /** 原子完成每日去重和过期时间设置，避免只写入集合却未设置过期时间 */
+    private static final DefaultRedisScript<Long> DAILY_STATS_SCRIPT = new DefaultRedisScript<>(
+            "local added = redis.call('SADD', KEYS[1], ARGV[1]); " +
+                    "redis.call('EXPIREAT', KEYS[1], ARGV[2]); return added", Long.class);
+
     private final RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter;
     private final LinkGotoMapper linkGotoMapper;
     private final StringRedisTemplate stringRedisTemplate;
@@ -78,6 +87,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final LinkAccessLogsMapper linkAccessLogsMapper;
+    private final LinkStatsTodayMapper linkStatsTodayMapper;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
@@ -135,13 +145,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
 
     @Override
     public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO requestParam) {
-        LambdaQueryWrapper<LinkDO> queryWrapper = Wrappers.lambdaQuery(LinkDO.class)
-                .eq(LinkDO::getGid, requestParam.getGid())
-                .eq(LinkDO::getEnableStatus, 0)
-                .eq(LinkDO::getDelFlag, 0)
-                .orderByDesc(LinkDO::getCreateTime);
-        IPage<LinkDO> resultPage = baseMapper.selectPage(requestParam, queryWrapper);
-        return resultPage.convert(each -> BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
+        Page<ShortLinkPageRespDTO> page = new Page<>(requestParam.getCurrent(), requestParam.getSize());
+        return baseMapper.selectLinkPage(page, requestParam.getGid(), LocalDate.now());
     }
 
     @Override
@@ -248,7 +253,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         String originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
         // 只 get 一次，避免 hasKey 和 get 之间 key 过期
         if (StrUtil.isNotBlank(originUrlStr)) {
-            shortLinkStats(fullShortUrl, request, response);
+            shortLinkStats(fullShortUrl, null, request, response);
             redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
             return;
         }
@@ -270,7 +275,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         try {
             originUrlStr = stringRedisTemplate.opsForValue().get(goToShortLinkKey);
             if (StrUtil.isNotBlank(originUrlStr)) {
-                shortLinkStats(fullShortUrl, request, response);
+                shortLinkStats(fullShortUrl, null, request, response);
                 redirect((HttpServletResponse) response, fullShortUrl, originUrlStr);
                 return;
             }
@@ -319,7 +324,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
                     linkDO.getOriginUrl(),
                     cacheValidTime,
                     TimeUnit.MILLISECONDS);
-            shortLinkStats(fullShortUrl, request, response);
+            shortLinkStats(fullShortUrl, linkGotoDO.getGid(), request, response);
             redirect((HttpServletResponse) response, fullShortUrl, linkDO.getOriginUrl());
 
         } finally {
@@ -360,11 +365,20 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
         }
     }
 
-    private void shortLinkStats(String fullShortUrl, ServletRequest request, ServletResponse response) {
+    private void shortLinkStats(String fullShortUrl, String gid, ServletRequest request, ServletResponse response) {
         AtomicBoolean uvFirstFlag = new AtomicBoolean();
         Cookie[] cookies = ((HttpServletRequest) request).getCookies();
         AtomicReference<String> uv = new AtomicReference<>();
         try {
+            if (StrUtil.isBlank(gid)) {
+                LinkGotoDO linkGoto = linkGotoMapper.selectOne(Wrappers.lambdaQuery(LinkGotoDO.class)
+                        .eq(LinkGotoDO::getFullShortUrl, fullShortUrl));
+                if (linkGoto == null) {
+                    log.warn("短链接路由不存在，无法记录访问统计：{}", fullShortUrl);
+                    return;
+                }
+                gid = linkGoto.getGid();
+            }
             Runnable addResponseCookieTask = () -> {
                 uv.set(UUID.fastUUID().toString());
                 Cookie uvCookie = new Cookie("uv", uv.get());
@@ -392,7 +406,30 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
             Long uipAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, remoteAddr);
             boolean uipFirstFlag = uipAdded != null && uipAdded > 0L;
 
-            Date now = new Date();
+            ZonedDateTime accessTime = ZonedDateTime.now();
+            LocalDate today = accessTime.toLocalDate();
+            // 多保留一天，保证当天内再次访问不会因提前过期而重复计数。
+            long expireAt = today.plusDays(2).atStartOfDay(accessTime.getZone()).toEpochSecond();
+            Long dailyUvAdded = stringRedisTemplate.execute(DAILY_STATS_SCRIPT,
+                    Collections.singletonList(SHORT_LINK_STATS_DAILY_UV_KEY + today + ":" + fullShortUrl),
+                    uv.get(), String.valueOf(expireAt));
+            Long dailyUipAdded = stringRedisTemplate.execute(DAILY_STATS_SCRIPT,
+                    Collections.singletonList(SHORT_LINK_STATS_DAILY_UIP_KEY + today + ":" + fullShortUrl),
+                    remoteAddr, String.valueOf(expireAt));
+            if (dailyUvAdded == null || dailyUipAdded == null) {
+                throw new IllegalStateException("每日访问统计去重未返回结果");
+            }
+            int updated = baseMapper.incrementLinkStats(gid, fullShortUrl,
+                    uvFirstFlag.get() ? 1 : 0, uipFirstFlag ? 1 : 0);
+            if (updated == 0) {
+                log.warn("短链接记录不存在，无法记录访问统计：{}，分组：{}", fullShortUrl, gid);
+                return;
+            }
+            linkStatsTodayMapper.incrementTodayStats(fullShortUrl, today,
+                    Long.valueOf(1L).equals(dailyUvAdded) ? 1 : 0,
+                    Long.valueOf(1L).equals(dailyUipAdded) ? 1 : 0);
+
+            Date now = Date.from(accessTime.toInstant());
             int hour = DateUtil.hour(now, true);
             Week week = DateUtil.dayOfWeekEnum(now);
             int weekValue = week.getIso8601Value();

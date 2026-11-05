@@ -54,6 +54,15 @@ public class LinkDO extends BaseDO {
      */
     private Integer clickNum;
 
+    /** 历史 PV */
+    private Integer totalPv;
+
+    /** 历史 UV */
+    private Integer totalUv;
+
+    /** 历史 UIP */
+    private Integer totalUip;
+
     /**
      * 分组标识
      */
