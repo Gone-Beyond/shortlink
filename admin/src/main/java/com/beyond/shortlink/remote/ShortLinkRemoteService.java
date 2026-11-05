@@ -11,6 +11,7 @@ import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsRespDTO;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsAccessRecordRespDTO;
 
 import java.util.HashMap;
 import java.util.List;
@@ -151,4 +152,17 @@ public interface ShortLinkRemoteService {
         });
     }
 
+    /** 分页查询单个短链接访问记录 */
+    default Result<Page<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("fullShortUrl", requestParam.getFullShortUrl());
+        requestMap.put("gid", requestParam.getGid());
+        requestMap.put("startDate", requestParam.getStartDate());
+        requestMap.put("endDate", requestParam.getEndDate());
+        requestMap.put("current", requestParam.getCurrent());
+        requestMap.put("size", requestParam.getSize());
+        String resultStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/stats/access-record", requestMap);
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
 }

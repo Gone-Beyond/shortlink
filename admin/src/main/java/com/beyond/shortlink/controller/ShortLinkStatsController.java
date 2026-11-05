@@ -5,6 +5,9 @@ import com.beyond.shortlink.remote.ShortLinkRemoteService;
 import com.beyond.shortlink.remote.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsRespDTO;
 import com.beyond.shortlink.service.GroupService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.beyond.shortlink.remote.dto.req.ShortLinkStatsAccessRecordReqDTO;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsAccessRecordRespDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,5 +34,12 @@ public class ShortLinkStatsController {
     public Result<ShortLinkStatsRespDTO> shortLinkStats(ShortLinkStatsReqDTO requestParam) {
         groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.oneShortLinkStats(requestParam);
+    }
+
+    /** 分页查询单个短链接访问记录 */
+    @GetMapping("/api/short-link/admin/v1/stats/access-record")
+    public Result<Page<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam) {
+        groupService.checkGroupBelongToUser(requestParam.getGid());
+        return shortLinkRemoteService.shortLinkStatsAccessRecord(requestParam);
     }
 }

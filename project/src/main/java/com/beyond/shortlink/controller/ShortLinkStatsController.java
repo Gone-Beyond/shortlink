@@ -5,6 +5,9 @@ import com.beyond.shortlink.common.convention.result.Results;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkStatsRespDTO;
 import com.beyond.shortlink.service.ShortLinkStatsService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.beyond.shortlink.dto.req.ShortLinkStatsAccessRecordReqDTO;
+import com.beyond.shortlink.dto.resp.ShortLinkStatsAccessRecordRespDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,5 +27,11 @@ public class ShortLinkStatsController {
     @GetMapping("/api/short-link/v1/stats")
     public Result<ShortLinkStatsRespDTO> shortLinkStats(ShortLinkStatsReqDTO requestParam) {
         return Results.success(shortLinkStatsService.oneShortLinkStats(requestParam));
+    }
+
+    /** 分页查询单个短链接访问记录 */
+    @GetMapping("/api/short-link/v1/stats/access-record")
+    public Result<IPage<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam) {
+        return Results.success(shortLinkStatsService.shortLinkStatsAccessRecord(requestParam));
     }
 }
