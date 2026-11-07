@@ -7,6 +7,7 @@ import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.dao.entity.*;
 import com.beyond.shortlink.dao.mapper.*;
 import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.*;
@@ -66,6 +67,41 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
                 .filter(StrUtil::isNotBlank).distinct().toList();
         Map<String, String> visitorTypes = users.isEmpty() ? Map.of() : linkAccessLogsMapper
                 .selectVisitorTypes(requestParam.getFullShortUrl(), startTime, endTime, users).stream()
+                .collect(Collectors.toMap(each -> each.get("visitor").toString(), each -> each.get("uvType").toString()));
+        return page.convert(each -> {
+            ShortLinkStatsAccessRecordRespDTO result = BeanUtil.toBean(each, ShortLinkStatsAccessRecordRespDTO.class);
+            if (StrUtil.isNotBlank(each.getUser())) {
+                result.setUvType(visitorTypes.get(each.getUser()));
+            }
+            return result;
+        });
+    }
+
+    @Override
+    public IPage<ShortLinkStatsAccessRecordRespDTO> groupShortLinkStatsAccessRecord(ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        if (StrUtil.isBlank(requestParam.getGid()) || StrUtil.isBlank(requestParam.getStartDate())
+                || StrUtil.isBlank(requestParam.getEndDate()) || requestParam.getCurrent() < 1 || requestParam.getSize() < 1) {
+            throw new ClientException("分组、日期及分页参数不能为空或无效");
+        }
+        LocalDate startDate;
+        LocalDate endDate;
+        try {
+            startDate = LocalDate.parse(requestParam.getStartDate());
+            endDate = LocalDate.parse(requestParam.getEndDate());
+        } catch (DateTimeParseException ex) {
+            throw new ClientException("日期格式应为 yyyy-MM-dd");
+        }
+        if (endDate.isBefore(startDate) || endDate.equals(LocalDate.MAX)) {
+            throw new ClientException("结束日期不能早于开始日期或超出有效范围");
+        }
+        LocalDateTime startTime = startDate.atStartOfDay();
+        LocalDateTime endTime = endDate.plusDays(1).atStartOfDay();
+        IPage<LinkAccessLogsDO> page = linkAccessLogsMapper.selectGroupAccessRecordPage(requestParam,
+                requestParam.getGid(), startTime, endTime);
+        List<String> users = page.getRecords().stream().map(LinkAccessLogsDO::getUser)
+                .filter(StrUtil::isNotBlank).distinct().toList();
+        Map<String, String> visitorTypes = users.isEmpty() ? Map.of() : linkAccessLogsMapper
+                .selectGroupVisitorTypes(requestParam.getGid(), startTime, endTime, users).stream()
                 .collect(Collectors.toMap(each -> each.get("visitor").toString(), each -> each.get("uvType").toString()));
         return page.convert(each -> {
             ShortLinkStatsAccessRecordRespDTO result = BeanUtil.toBean(each, ShortLinkStatsAccessRecordRespDTO.class);

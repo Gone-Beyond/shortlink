@@ -165,6 +165,18 @@ public interface ShortLinkRemoteService {
         });
     }
 
+    /** 分页查询分组访问记录 */
+    default Result<Page<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkStatsAccessRecord(ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("gid", requestParam.getGid());
+        requestMap.put("startDate", requestParam.getStartDate());
+        requestMap.put("endDate", requestParam.getEndDate());
+        requestMap.put("current", requestParam.getCurrent());
+        requestMap.put("size", requestParam.getSize());
+        String resultStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/stats/access-record/group", requestMap);
+        return JSON.parseObject(resultStr, new TypeReference<>() {});
+    }
+
     /** 分页查询单个短链接访问记录 */
     default Result<Page<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam) {
         Map<String, Object> requestMap = new HashMap<>();

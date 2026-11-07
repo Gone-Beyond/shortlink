@@ -9,6 +9,7 @@ import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
 import com.beyond.shortlink.dao.mapper.LinkStatsTodayMapper;
 import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkStatsRespDTO;
@@ -164,6 +165,43 @@ class ShortLinkDailyStatsIT {
                 todayMapper.delete(Wrappers.lambdaQuery(LinkStatsTodayDO.class)
                         .eq(LinkStatsTodayDO::getFullShortUrl, url));
             }
+        }
+    }
+
+    @Test
+    void groupRecordsPaginateAndClassifyVisitorsAcrossLinks() {
+        String gid = "group-it-" + UUID.randomUUID().toString().substring(0, 10);
+        String prefix = "group-it.invalid/" + UUID.randomUUID();
+        String a = prefix + "a";
+        String b = prefix + "b";
+        LocalDate today = LocalDate.now();
+        try {
+            linkMapper.insert(LinkDO.builder().gid(gid).fullShortUrl(a).enableStatus(0).build());
+            linkMapper.insert(LinkDO.builder().gid(gid).fullShortUrl(b).enableStatus(0).build());
+            jdbcTemplate.update("INSERT INTO t_link_access_logs (full_short_url, user, ip, create_time, update_time, del_flag) VALUES (?, ?, ?, ?, ?, 0)",
+                    a, "old-visitor", "192.0.2.1", today.minusDays(1).atStartOfDay(), today.minusDays(1).atStartOfDay());
+            jdbcTemplate.update("INSERT INTO t_link_access_logs (full_short_url, user, ip, create_time, update_time, del_flag) VALUES (?, ?, ?, ?, ?, 0)",
+                    b, "old-visitor", "192.0.2.1", today.atTime(12, 0), today.atTime(12, 0));
+            jdbcTemplate.update("INSERT INTO t_link_access_logs (full_short_url, user, ip, create_time, update_time, del_flag) VALUES (?, ?, ?, ?, ?, 0)",
+                    a, "new-visitor", "192.0.2.2", today.atTime(23, 59), today.atTime(23, 59));
+            jdbcTemplate.update("INSERT INTO t_link_access_logs (full_short_url, user, ip, create_time, update_time, del_flag) VALUES (?, ?, ?, ?, ?, 0)",
+                    a, "tomorrow", "192.0.2.3", today.plusDays(1).atStartOfDay(), today.plusDays(1).atStartOfDay());
+            ShortLinkGroupStatsAccessRecordReqDTO request = new ShortLinkGroupStatsAccessRecordReqDTO();
+            request.setGid(gid);
+            request.setStartDate(today.toString());
+            request.setEndDate(today.toString());
+            request.setSize(1);
+            var first = shortLinkStatsService.groupShortLinkStatsAccessRecord(request);
+            assertEquals(2, first.getTotal());
+            assertEquals("new-visitor", first.getRecords().get(0).getUser());
+            assertEquals("新访客", first.getRecords().get(0).getUvType());
+            request.setCurrent(2);
+            var second = shortLinkStatsService.groupShortLinkStatsAccessRecord(request);
+            assertEquals("old-visitor", second.getRecords().get(0).getUser());
+            assertEquals("老访客", second.getRecords().get(0).getUvType());
+        } finally {
+            linkMapper.delete(Wrappers.lambdaQuery(LinkDO.class).eq(LinkDO::getGid, gid));
+            jdbcTemplate.update("DELETE FROM t_link_access_logs WHERE full_short_url IN (?, ?)", a, b);
         }
     }
 

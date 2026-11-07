@@ -1,6 +1,7 @@
 package com.beyond.shortlink.service;
 
 import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkStatsRespDTO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -29,4 +30,6 @@ public interface ShortLinkStatsService {
     ShortLinkStatsRespDTO groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam);
 
     IPage<ShortLinkStatsAccessRecordRespDTO> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam);
+
+    IPage<ShortLinkStatsAccessRecordRespDTO> groupShortLinkStatsAccessRecord(ShortLinkGroupStatsAccessRecordReqDTO requestParam);
 }

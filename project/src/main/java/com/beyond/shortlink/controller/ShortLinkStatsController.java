@@ -3,6 +3,7 @@ package com.beyond.shortlink.controller;
 import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.common.convention.result.Results;
 import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkStatsRespDTO;
 import com.beyond.shortlink.service.ShortLinkStatsService;
@@ -36,6 +37,12 @@ public class ShortLinkStatsController {
     @GetMapping("/api/short-link/v1/stats/group")
     public Result<ShortLinkStatsRespDTO> groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
         return Results.success(shortLinkStatsService.groupShortLinkStats(requestParam));
+    }
+
+    /** 分页查询分组访问记录 */
+    @GetMapping("/api/short-link/v1/stats/access-record/group")
+    public Result<IPage<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkStatsAccessRecord(ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        return Results.success(shortLinkStatsService.groupShortLinkStatsAccessRecord(requestParam));
     }
 
     /** 分页查询单个短链接访问记录 */

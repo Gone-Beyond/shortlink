@@ -30,6 +30,28 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             @Param("gid") String gid, @Param("fullShortUrl") String fullShortUrl,
             @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 
+    /** 分页查询分组有效短链接的访问记录 */
+    @Select("SELECT tlal.* FROM t_link_access_logs tlal " +
+            "INNER JOIN t_link tl ON tl.full_short_url = tlal.full_short_url " +
+            "WHERE tl.gid = #{gid} AND tl.del_flag = 0 AND tl.enable_status = 0 AND tlal.del_flag = 0 " +
+            "AND tlal.create_time >= #{startTime} AND tlal.create_time < #{endTime} " +
+            "ORDER BY tlal.create_time DESC, tlal.id DESC")
+    IPage<LinkAccessLogsDO> selectGroupAccessRecordPage(IPage<LinkAccessLogsDO> page,
+            @Param("gid") String gid, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+    /** 根据分组内首次访问时间判断访客类型 */
+    @Select("<script> SELECT tlal.`user` AS visitor, " +
+            "CASE WHEN MIN(tlal.create_time) >= #{startTime} AND MIN(tlal.create_time) &lt; #{endTime} " +
+            "THEN '新访客' ELSE '老访客' END AS uvType " +
+            "FROM t_link tl INNER JOIN t_link_access_logs tlal ON tl.full_short_url = tlal.full_short_url " +
+            "WHERE tl.gid = #{gid} AND tl.del_flag = 0 AND tl.enable_status = 0 AND tlal.del_flag = 0 " +
+            "AND tlal.`user` IN " +
+            "<foreach collection='users' item='user' open='(' separator=',' close=')'>#{user}</foreach> " +
+            "GROUP BY tlal.`user` </script>")
+    List<Map<String, Object>> selectGroupVisitorTypes(@Param("gid") String gid,
+            @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime,
+            @Param("users") List<String> users);
+
     /** 根据访客首次访问时间判断查询期间的新老访客 */
     @Select("<script> SELECT tlal.`user` AS visitor, " +
             "CASE WHEN MIN(tlal.create_time) >= #{startTime} AND MIN(tlal.create_time) &lt; #{endTime} " +
