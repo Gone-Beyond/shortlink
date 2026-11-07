@@ -1,6 +1,7 @@
 package com.beyond.shortlink.remote;
 
 import cn.hutool.http.HttpUtil;
+import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,6 +10,8 @@ import com.beyond.shortlink.remote.dto.req.*;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkPageRespDTO;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsRespDTO;
+import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsAccessRecordRespDTO;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +39,7 @@ public interface ShortLinkRemoteService {
     default Result<Page<ShortLinkPageRespDTO>> pageShortLink(ShortLinkPageReqDTO requestParam) {
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("gid", requestParam.getGid());
+        requestMap.put("orderTag", requestParam.getOrderTag());
         requestMap.put("current", requestParam.getCurrent());
         requestMap.put("size", requestParam.getSize());
         String resultPageStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/page", requestMap);
@@ -137,4 +141,53 @@ public interface ShortLinkRemoteService {
         });
     }
 
+    /**
+     * 访问单个短链接指定时间内监控数据
+     */
+    default Result<ShortLinkStatsRespDTO> oneShortLinkStats(ShortLinkStatsReqDTO requestParam) {
+        String resultStr = HttpUtil.get(
+                BASE_URL + "/api/short-link/v1/stats",
+                BeanUtil.beanToMap(requestParam));
+
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
+
+    /**
+     * 访问分组短链接指定时间内监控数据
+     */
+    default Result<ShortLinkStatsRespDTO> groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
+        String resultStr = HttpUtil.get(
+                BASE_URL + "/api/short-link/v1/stats/group",
+                BeanUtil.beanToMap(requestParam));
+
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
+
+    /** 分页查询分组访问记录 */
+    default Result<Page<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkStatsAccessRecord(ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("gid", requestParam.getGid());
+        requestMap.put("startDate", requestParam.getStartDate());
+        requestMap.put("endDate", requestParam.getEndDate());
+        requestMap.put("current", requestParam.getCurrent());
+        requestMap.put("size", requestParam.getSize());
+        String resultStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/stats/access-record/group", requestMap);
+        return JSON.parseObject(resultStr, new TypeReference<>() {});
+    }
+
+    /** 分页查询单个短链接访问记录 */
+    default Result<Page<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("fullShortUrl", requestParam.getFullShortUrl());
+        requestMap.put("gid", requestParam.getGid());
+        requestMap.put("startDate", requestParam.getStartDate());
+        requestMap.put("endDate", requestParam.getEndDate());
+        requestMap.put("current", requestParam.getCurrent());
+        requestMap.put("size", requestParam.getSize());
+        String resultStr = HttpUtil.get(BASE_URL + "/api/short-link/v1/stats/access-record", requestMap);
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
 }

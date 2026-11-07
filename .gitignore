@@ -45,3 +45,5 @@ build/
 ### Apifox & Temp ###
 .apifox/
 ocr*.txt
+project/src/main/resources/database/create-link-access-stats.sql
+project/src/main/resources/database/link-stats.sql
