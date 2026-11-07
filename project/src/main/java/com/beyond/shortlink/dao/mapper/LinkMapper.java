@@ -16,14 +16,24 @@ import java.time.LocalDate;
 public interface LinkMapper extends BaseMapper<LinkDO> {
 
     /** 分页查询短链接及当日访问统计 */
-    @Select("SELECT tl.*, COALESCE(today.today_pv, 0) AS today_pv, " +
-            "COALESCE(today.today_uv, 0) AS today_uv, COALESCE(today.today_uip, 0) AS today_uip " +
-            "FROM t_link tl LEFT JOIN t_link_stats_today today " +
-            "ON tl.full_short_url = today.full_short_url AND today.date = #{date} AND today.del_flag = 0 " +
-            "WHERE tl.gid = #{gid} AND tl.enable_status = 0 AND tl.del_flag = 0 " +
-            "ORDER BY tl.create_time DESC, tl.id DESC")
+    @Select({"<script>",
+            "SELECT tl.*, COALESCE(today.today_pv, 0) AS today_pv,",
+            "COALESCE(today.today_uv, 0) AS today_uv, COALESCE(today.today_uip, 0) AS today_uip",
+            "FROM t_link tl LEFT JOIN t_link_stats_today today",
+            "ON tl.full_short_url = today.full_short_url AND today.date = #{date} AND today.del_flag = 0",
+            "WHERE tl.gid = #{gid} AND tl.enable_status = 0 AND tl.del_flag = 0",
+            "<choose>",
+            "<when test=\"orderTag == 'todayPv'\">ORDER BY COALESCE(today.today_pv, 0) DESC, tl.id DESC</when>",
+            "<when test=\"orderTag == 'todayUv'\">ORDER BY COALESCE(today.today_uv, 0) DESC, tl.id DESC</when>",
+            "<when test=\"orderTag == 'todayUip'\">ORDER BY COALESCE(today.today_uip, 0) DESC, tl.id DESC</when>",
+            "<when test=\"orderTag == 'totalPv'\">ORDER BY tl.total_pv DESC, tl.id DESC</when>",
+            "<when test=\"orderTag == 'totalUv'\">ORDER BY tl.total_uv DESC, tl.id DESC</when>",
+            "<when test=\"orderTag == 'totalUip'\">ORDER BY tl.total_uip DESC, tl.id DESC</when>",
+            "<otherwise>ORDER BY tl.create_time DESC, tl.id DESC</otherwise>",
+            "</choose>",
+            "</script>"})
     IPage<ShortLinkPageRespDTO> selectLinkPage(IPage<ShortLinkPageRespDTO> page,
-            @Param("gid") String gid, @Param("date") LocalDate date);
+            @Param("gid") String gid, @Param("date") LocalDate date, @Param("orderTag") String orderTag);
 
     /** 累加短链接历史访问统计 */
     @Update("UPDATE t_link SET total_pv = total_pv + 1, total_uv = total_uv + #{uv}, " +

@@ -146,7 +146,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<LinkMapper, LinkDO> implem
     @Override
     public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO requestParam) {
         Page<ShortLinkPageRespDTO> page = new Page<>(requestParam.getCurrent(), requestParam.getSize());
-        return baseMapper.selectLinkPage(page, requestParam.getGid(), LocalDate.now());
+        return baseMapper.selectLinkPage(page, requestParam.getGid(), LocalDate.now(), requestParam.getOrderTag());
     }
 
     @Override

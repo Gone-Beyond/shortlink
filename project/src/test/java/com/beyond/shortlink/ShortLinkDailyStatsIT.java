@@ -20,6 +20,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static com.beyond.shortlink.common.constant.RedisKeyConstant.*;
@@ -93,6 +94,52 @@ class ShortLinkDailyStatsIT {
             redis.delete(SHORT_LINK_STATS_UIP_KEY + url);
             redis.delete(SHORT_LINK_STATS_DAILY_UV_KEY + today + ":" + url);
             redis.delete(SHORT_LINK_STATS_DAILY_UIP_KEY + today + ":" + url);
+        }
+    }
+
+    @Test
+    void sortsBeforePagingAndIncludesLinksWithoutTodayStats() {
+        String gid = "sort-it-" + UUID.randomUUID().toString().substring(0, 10);
+        String prefix = "sort-it.invalid/" + UUID.randomUUID();
+        String a = prefix + "a";
+        String b = prefix + "b";
+        String c = prefix + "c";
+        try {
+            linkMapper.insert(LinkDO.builder().gid(gid).fullShortUrl(a).enableStatus(0).totalPv(50).build());
+            linkMapper.insert(LinkDO.builder().gid(gid).fullShortUrl(b).enableStatus(0).totalPv(100).build());
+            linkMapper.insert(LinkDO.builder().gid(gid).fullShortUrl(c).enableStatus(0).totalPv(10).build());
+            todayMapper.insert(LinkStatsTodayDO.builder().fullShortUrl(a).date(LocalDate.now())
+                    .todayPv(20).todayUv(0).todayUip(0).build());
+            todayMapper.insert(LinkStatsTodayDO.builder().fullShortUrl(b).date(LocalDate.now())
+                    .todayPv(5).todayUv(0).todayUip(0).build());
+
+            ShortLinkPageReqDTO request = new ShortLinkPageReqDTO();
+            request.setGid(gid);
+            request.setSize(2);
+            request.setOrderTag("todayPv");
+            assertEquals(List.of(a, b), shortLinkService.pageShortLink(request).getRecords().stream()
+                    .map(ShortLinkPageRespDTO::getFullShortUrl).toList());
+            request.setCurrent(2);
+            ShortLinkPageRespDTO last = shortLinkService.pageShortLink(request).getRecords().get(0);
+            assertEquals(c, last.getFullShortUrl());
+            assertEquals(0, last.getTodayPv());
+
+            request.setCurrent(1);
+            request.setOrderTag("totalPv");
+            assertEquals(List.of(b, a), shortLinkService.pageShortLink(request).getRecords().stream()
+                    .map(ShortLinkPageRespDTO::getFullShortUrl).toList());
+            request.setOrderTag("unknown");
+            List<String> fallback = shortLinkService.pageShortLink(request).getRecords().stream()
+                    .map(ShortLinkPageRespDTO::getFullShortUrl).toList();
+            request.setOrderTag(null);
+            assertEquals(fallback, shortLinkService.pageShortLink(request).getRecords().stream()
+                    .map(ShortLinkPageRespDTO::getFullShortUrl).toList());
+        } finally {
+            linkMapper.delete(Wrappers.lambdaQuery(LinkDO.class).eq(LinkDO::getGid, gid));
+            for (String url : List.of(a, b, c)) {
+                todayMapper.delete(Wrappers.lambdaQuery(LinkStatsTodayDO.class)
+                        .eq(LinkStatsTodayDO::getFullShortUrl, url));
+            }
         }
     }
 
