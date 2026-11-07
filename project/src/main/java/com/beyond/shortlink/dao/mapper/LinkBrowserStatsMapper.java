@@ -2,6 +2,7 @@ package com.beyond.shortlink.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.beyond.shortlink.dao.entity.LinkBrowserStatsDO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
@@ -38,4 +39,21 @@ public interface LinkBrowserStatsMapper extends BaseMapper<LinkBrowserStatsDO> {
             "GROUP BY " +
             "    tlbs.browser;")
     List<LinkBrowserStatsDO> listBrowserStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
+
+    /**
+     * 根据分组获取指定日期内浏览器监控数据
+     */
+    @Select("SELECT " +
+            "    tlbs.browser, " +
+            "    SUM(tlbs.cnt) AS cnt " +
+            "FROM " +
+            "    t_link tl INNER JOIN t_link_browser_stats tlbs ON tl.full_short_url = tlbs.full_short_url " +
+            "WHERE " +
+            "    tl.gid = #{param.gid} " +
+            "    AND tl.del_flag = 0 " +
+            "    AND tl.enable_status = 0 " +
+            "    AND tlbs.date BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY " +
+            "    tl.gid, tlbs.browser;")
+    List<LinkBrowserStatsDO> listBrowserStatsByGroup(@Param("param") ShortLinkGroupStatsReqDTO requestParam);
 }

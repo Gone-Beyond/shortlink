@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.beyond.shortlink.common.convention.exception.ClientException;
 import com.beyond.shortlink.dao.entity.*;
 import com.beyond.shortlink.dao.mapper.*;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.*;
@@ -214,6 +215,137 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
                 .browserStats(browserStats)
                 .osStats(osStats)
                 .uvTypeStats(uvTypeStats)
+                .deviceStats(deviceStats)
+                .networkStats(networkStats)
+                .build();
+    }
+
+    @Override
+    public ShortLinkStatsRespDTO groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
+        List<LinkAccessStatsDO> listStatsByGroup = linkAccessStatsMapper.listStatsByGroup(requestParam);
+        if (listStatsByGroup == null || listStatsByGroup.isEmpty()) {
+            return ShortLinkStatsRespDTO.builder()
+                    .pv(0).uv(0).uip(0)
+                    .daily(new ArrayList<>())
+                    .localeCnStats(new ArrayList<>())
+                    .hourStats(new ArrayList<>())
+                    .topIpStats(new ArrayList<>())
+                    .weekdayStats(new ArrayList<>())
+                    .browserStats(new ArrayList<>())
+                    .osStats(new ArrayList<>())
+                    .deviceStats(new ArrayList<>())
+                    .networkStats(new ArrayList<>())
+                    .build();
+        }
+        LinkAccessStatsDO pvUvUidStatsByGroup = linkAccessLogsMapper.findPvUvUidStatsByGroup(requestParam);
+        int pv = Optional.ofNullable(pvUvUidStatsByGroup).map(LinkAccessStatsDO::getPv).orElse(0);
+        int uv = Optional.ofNullable(pvUvUidStatsByGroup).map(LinkAccessStatsDO::getUv).orElse(0);
+        int uip = Optional.ofNullable(pvUvUidStatsByGroup).map(LinkAccessStatsDO::getUip).orElse(0);
+        // 地区访问详情（仅国内）
+        List<ShortLinkStatsLocaleCNRespDTO> localeCnStats = new ArrayList<>();
+        List<LinkLocaleStatsDO> listedLocaleByGroup = linkLocaleStatsMapper.listLocaleByGroup(requestParam);
+        int localeCnSum = listedLocaleByGroup.stream().mapToInt(LinkLocaleStatsDO::getCnt).sum();
+        listedLocaleByGroup.forEach(each -> {
+            double ratio = (double) each.getCnt() / localeCnSum;
+            double actualRatio = Math.round(ratio * 100.0) / 100.0;
+            localeCnStats.add(ShortLinkStatsLocaleCNRespDTO.builder()
+                    .cnt(each.getCnt())
+                    .locale(each.getProvince())
+                    .ratio(actualRatio)
+                    .build());
+        });
+        // 小时访问详情
+        List<Integer> hourStats = new ArrayList<>();
+        List<LinkAccessStatsDO> listHourStatsByGroup = linkAccessStatsMapper.listHourStatsByGroup(requestParam);
+        for (int i = 0; i < 24; i++) {
+            int hour = i;
+            int hourCnt = listHourStatsByGroup.stream()
+                    .filter(each -> Objects.equals(each.getHour(), hour))
+                    .findFirst()
+                    .map(LinkAccessStatsDO::getPv)
+                    .orElse(0);
+            hourStats.add(hourCnt);
+        }
+        // 高频访问IP详情
+        List<ShortLinkStatsTopIpRespDTO> topIpStats = new ArrayList<>();
+        linkAccessLogsMapper.listTopIpByGroup(requestParam).forEach(each ->
+                topIpStats.add(ShortLinkStatsTopIpRespDTO.builder()
+                        .ip(each.get("ip").toString())
+                        .cnt(Integer.parseInt(each.get("cnt").toString()))
+                        .build()));
+        // 一周访问详情
+        List<Integer> weekdayStats = new ArrayList<>();
+        List<LinkAccessStatsDO> listWeekdayStatsByGroup = linkAccessStatsMapper.listWeekdayStatsByGroup(requestParam);
+        for (int i = 1; i <= 7; i++) {
+            int weekday = i;
+            int weekdayCnt = listWeekdayStatsByGroup.stream()
+                    .filter(each -> Objects.equals(each.getWeekday(), weekday))
+                    .findFirst()
+                    .map(LinkAccessStatsDO::getPv)
+                    .orElse(0);
+            weekdayStats.add(weekdayCnt);
+        }
+        // 浏览器访问详情
+        List<ShortLinkStatsBrowserRespDTO> browserStats = new ArrayList<>();
+        List<LinkBrowserStatsDO> listedBrowserStats = linkBrowserStatsMapper.listBrowserStatsByGroup(requestParam);
+        int browserSum = listedBrowserStats.stream().mapToInt(LinkBrowserStatsDO::getCnt).sum();
+        listedBrowserStats.forEach(each -> {
+            double ratio = (double) each.getCnt() / browserSum;
+            double actualRatio = Math.round(ratio * 100.0) / 100.0;
+            browserStats.add(ShortLinkStatsBrowserRespDTO.builder()
+                    .cnt(each.getCnt())
+                    .browser(each.getBrowser())
+                    .ratio(actualRatio)
+                    .build());
+        });
+        // 操作系统访问详情
+        List<ShortLinkStatsOsRespDTO> osStats = new ArrayList<>();
+        List<LinkOsStatsDO> listedOsStats = linkOsStatsMapper.listOsStatsByGroup(requestParam);
+        int osSum = listedOsStats.stream().mapToInt(LinkOsStatsDO::getCnt).sum();
+        listedOsStats.forEach(each -> {
+            double ratio = (double) each.getCnt() / osSum;
+            double actualRatio = Math.round(ratio * 100.0) / 100.0;
+            osStats.add(ShortLinkStatsOsRespDTO.builder()
+                    .cnt(each.getCnt())
+                    .os(each.getOs())
+                    .ratio(actualRatio)
+                    .build());
+        });
+        // 访问设备类型详情
+        List<ShortLinkStatsDeviceRespDTO> deviceStats = new ArrayList<>();
+        List<LinkDeviceStatsDO> listedDeviceStats = linkDeviceStatsMapper.listDeviceStatsByGroup(requestParam);
+        int deviceSum = listedDeviceStats.stream().mapToInt(LinkDeviceStatsDO::getCnt).sum();
+        listedDeviceStats.forEach(each -> {
+            double ratio = (double) each.getCnt() / deviceSum;
+            double actualRatio = Math.round(ratio * 100.0) / 100.0;
+            deviceStats.add(ShortLinkStatsDeviceRespDTO.builder()
+                    .cnt(each.getCnt())
+                    .device(each.getDevice())
+                    .ratio(actualRatio)
+                    .build());
+        });
+        // 访问网络类型详情
+        List<ShortLinkStatsNetworkRespDTO> networkStats = new ArrayList<>();
+        List<LinkNetworkStatsDO> listedNetworkStats = linkNetworkStatsMapper.listNetworkStatsByGroup(requestParam);
+        int networkSum = listedNetworkStats.stream().mapToInt(LinkNetworkStatsDO::getCnt).sum();
+        listedNetworkStats.forEach(each -> {
+            double ratio = (double) each.getCnt() / networkSum;
+            double actualRatio = Math.round(ratio * 100.0) / 100.0;
+            networkStats.add(ShortLinkStatsNetworkRespDTO.builder()
+                    .cnt(each.getCnt())
+                    .network(each.getNetwork())
+                    .ratio(actualRatio)
+                    .build());
+        });
+        return ShortLinkStatsRespDTO.builder()
+                .pv(pv).uv(uv).uip(uip)
+                .daily(BeanUtil.copyToList(listStatsByGroup, ShortLinkStatsAccessDailyRespDTO.class))
+                .localeCnStats(localeCnStats)
+                .hourStats(hourStats)
+                .topIpStats(topIpStats)
+                .weekdayStats(weekdayStats)
+                .browserStats(browserStats)
+                .osStats(osStats)
                 .deviceStats(deviceStats)
                 .networkStats(networkStats)
                 .build();

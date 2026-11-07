@@ -8,6 +8,7 @@ import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
 import com.beyond.shortlink.dao.mapper.LinkStatsTodayMapper;
 import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkGroupStatsReqDTO;
 import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkStatsRespDTO;
@@ -95,6 +96,15 @@ class ShortLinkDailyStatsIT {
             assertEquals(4, stats.getPv());
             assertEquals(3, stats.getUv());
             assertEquals(3, stats.getUip());
+
+            ShortLinkGroupStatsReqDTO groupStatsRequest = new ShortLinkGroupStatsReqDTO();
+            groupStatsRequest.setGid(gid);
+            groupStatsRequest.setStartDate(today.toString());
+            groupStatsRequest.setEndDate(today.toString());
+            ShortLinkStatsRespDTO groupStats = shortLinkStatsService.groupShortLinkStats(groupStatsRequest);
+            assertEquals(4, groupStats.getPv());
+            assertEquals(3, groupStats.getUv());
+            assertEquals(3, groupStats.getUip());
         } finally {
             linkMapper.delete(Wrappers.lambdaQuery(LinkDO.class).eq(LinkDO::getGid, gid));
             gotoMapper.delete(Wrappers.lambdaQuery(LinkGotoDO.class).eq(LinkGotoDO::getFullShortUrl, url));

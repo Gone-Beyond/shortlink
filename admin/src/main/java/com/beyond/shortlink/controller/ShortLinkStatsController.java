@@ -2,6 +2,7 @@ package com.beyond.shortlink.controller;
 
 import com.beyond.shortlink.common.convention.result.Result;
 import com.beyond.shortlink.remote.ShortLinkRemoteService;
+import com.beyond.shortlink.remote.dto.req.ShortLinkGroupStatsReqDTO;
 import com.beyond.shortlink.remote.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.remote.dto.resp.ShortLinkStatsRespDTO;
 import com.beyond.shortlink.service.GroupService;
@@ -34,6 +35,15 @@ public class ShortLinkStatsController {
     public Result<ShortLinkStatsRespDTO> shortLinkStats(ShortLinkStatsReqDTO requestParam) {
         groupService.checkGroupBelongToUser(requestParam.getGid());
         return shortLinkRemoteService.oneShortLinkStats(requestParam);
+    }
+
+    /**
+     * 访问分组短链接指定时间内监控数据
+     */
+    @GetMapping("/api/short-link/admin/v1/stats/group")
+    public Result<ShortLinkStatsRespDTO> groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
+        groupService.checkGroupBelongToUser(requestParam.getGid());
+        return shortLinkRemoteService.groupShortLinkStats(requestParam);
     }
 
     /** 分页查询单个短链接访问记录 */

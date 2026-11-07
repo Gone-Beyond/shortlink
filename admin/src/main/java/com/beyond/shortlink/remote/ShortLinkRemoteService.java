@@ -153,6 +153,18 @@ public interface ShortLinkRemoteService {
         });
     }
 
+    /**
+     * 访问分组短链接指定时间内监控数据
+     */
+    default Result<ShortLinkStatsRespDTO> groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
+        String resultStr = HttpUtil.get(
+                BASE_URL + "/api/short-link/v1/stats/group",
+                BeanUtil.beanToMap(requestParam));
+
+        return JSON.parseObject(resultStr, new TypeReference<>() {
+        });
+    }
+
     /** 分页查询单个短链接访问记录 */
     default Result<Page<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(ShortLinkStatsAccessRecordReqDTO requestParam) {
         Map<String, Object> requestMap = new HashMap<>();
