@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.time.LocalDate;
@@ -93,9 +94,10 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
                     .networkStats(new ArrayList<>())
                     .build();
         }
-        int pv = listStatsByShortLink.stream().mapToInt(LinkAccessStatsDO::getPv).sum();
-        int uv = listStatsByShortLink.stream().mapToInt(LinkAccessStatsDO::getUv).sum();
-        int uip = listStatsByShortLink.stream().mapToInt(LinkAccessStatsDO::getUip).sum();
+        LinkAccessStatsDO pvUvUidStatsByShortLink = linkAccessLogsMapper.findPvUvUidStatsByShortLink(requestParam);
+        int pv = Optional.ofNullable(pvUvUidStatsByShortLink).map(LinkAccessStatsDO::getPv).orElse(0);
+        int uv = Optional.ofNullable(pvUvUidStatsByShortLink).map(LinkAccessStatsDO::getUv).orElse(0);
+        int uip = Optional.ofNullable(pvUvUidStatsByShortLink).map(LinkAccessStatsDO::getUip).orElse(0);
         // 地区访问详情（仅国内）
         List<ShortLinkStatsLocaleCNRespDTO> localeCnStats = new ArrayList<>();
         List<LinkLocaleStatsDO> listedLocaleByShortLink = linkLocaleStatsMapper.listLocaleByShortLink(requestParam);

@@ -8,8 +8,11 @@ import com.beyond.shortlink.dao.mapper.LinkMapper;
 import com.beyond.shortlink.dao.mapper.LinkGotoMapper;
 import com.beyond.shortlink.dao.mapper.LinkStatsTodayMapper;
 import com.beyond.shortlink.dto.req.ShortLinkPageReqDTO;
+import com.beyond.shortlink.dto.req.ShortLinkStatsReqDTO;
 import com.beyond.shortlink.dto.resp.ShortLinkPageRespDTO;
+import com.beyond.shortlink.dto.resp.ShortLinkStatsRespDTO;
 import com.beyond.shortlink.service.ShortLinkService;
+import com.beyond.shortlink.service.ShortLinkStatsService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 class ShortLinkDailyStatsIT {
     @Autowired private ShortLinkService shortLinkService;
+    @Autowired private ShortLinkStatsService shortLinkStatsService;
     @Autowired private LinkMapper linkMapper;
     @Autowired private LinkGotoMapper gotoMapper;
     @Autowired private LinkStatsTodayMapper todayMapper;
@@ -81,6 +85,16 @@ class ShortLinkDailyStatsIT {
             assertEquals(4, actual.getTodayPv());
             assertEquals(3, actual.getTodayUv());
             assertEquals(3, actual.getTodayUip());
+
+            ShortLinkStatsReqDTO statsRequest = new ShortLinkStatsReqDTO();
+            statsRequest.setGid(gid);
+            statsRequest.setFullShortUrl(url);
+            statsRequest.setStartDate(today.toString());
+            statsRequest.setEndDate(today.toString());
+            ShortLinkStatsRespDTO stats = shortLinkStatsService.oneShortLinkStats(statsRequest);
+            assertEquals(4, stats.getPv());
+            assertEquals(3, stats.getUv());
+            assertEquals(3, stats.getUip());
         } finally {
             linkMapper.delete(Wrappers.lambdaQuery(LinkDO.class).eq(LinkDO::getGid, gid));
             gotoMapper.delete(Wrappers.lambdaQuery(LinkGotoDO.class).eq(LinkGotoDO::getFullShortUrl, url));
